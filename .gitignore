@@ -1,0 +1,36 @@
+# build
+/out/
+/build/
+*.zip
+*.pdb
+*.exe
+*.obj
+*.o
+
+# recompiled code, derived from the game
+/generated/
+
+# user's own game files
+/assets/
+
+# runtime files
+settings.toml
+/logs/
+/hdd/
+/CrashDumps/
+
+# editors
+.vs/
+.vscode/
+.idea/
+
+# Local temporary folder
+.local
+
+# (DefJam) imagem do disco e o arquivo baixado: dados do jogo, nunca no git
+/iso/
+*.7z
+*.iso
+
+# (DefJam) capturas e registros dos boots de teste: imagens do jogo, ficam locais
+/runs/
