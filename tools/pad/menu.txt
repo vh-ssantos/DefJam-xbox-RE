@@ -1,0 +1,8 @@
+# passa a tela de titulo e confirma o que aparecer
+100 START
+106 START
+112 A
+118 A
+124 A
+130 A
+136 A
