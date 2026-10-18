@@ -245,7 +245,16 @@ DEFJAM_STORAGE_SERIAL(00133570)
 DEFJAM_STORAGE_SERIAL(00133580)
 DEFJAM_STORAGE_SERIAL(001335B0)
 DEFJAM_STORAGE_SERIAL(00133CD0)
-// callbacks que o módulo registra (push em 0x131596) e que zeram o global por 0x133C00, chamados por ponteiro
-DEFJAM_STORAGE_SERIAL(00133CB0)
-DEFJAM_STORAGE_SERIAL(00133CC0)
-DEFJAM_STORAGE_SERIAL(00133C00)
+// 0x133C00(flag), cdecl: chamada pelos callbacks 0x133CB0/0x133CC0 que o sistema de streaming (0xBF2B0) guarda e
+// chama da thread dele. Ela mesma desiste se o subsistema está ocupado ([0x3AD938] != 0), mas essa conferência não é
+// atômica. Aqui: se outra thread está dentro do subsistema, desiste também (try_lock), em vez de esperar; esperar
+// travava o jogo, porque a thread principal pode estar esperando o streaming com a trava na mão.
+X86_EXTERN_FUNC(__imp__sub_00133C00);
+X86_FUNC(sub_00133C00) {
+    std::unique_lock<std::recursive_mutex> lock(g_storage_lock, std::try_to_lock);
+    if (!lock.owns_lock()) {
+        ctx.esp += 4;  // ret: o chamador tira o argumento
+        return;
+    }
+    __imp__sub_00133C00(ctx, base);
+}
