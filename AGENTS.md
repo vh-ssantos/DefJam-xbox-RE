@@ -90,3 +90,13 @@ x86 -> C++, D3D8 -> D3D12, DirectSound -> XAudio2. O port de PS2 (E:\Projetos\De
   na hora) e nas falas (stream). Próximo: medir dentro da luta e seguir o carregamento assíncrono dos bancos.
 - Ferramentas: DEFJAM_DSTRACE=1 (chamadas DSound + energia por canal a cada 5 s), [xbe] trace no config com
   DEFJAM_TRACE_COUNT=1 (só contagem por 5 s, para traçar regiões inteiras), DEFJAM_KTRACE=1 (4 argumentos).
+
+## Fila de trabalho (combinada com o usuário em 2026-10-18)
+1. Cobrir o resto do jogo (modos, arenas, história) + relatos do usuário (Pendente teste do usuário.md no DefJam-RE).
+2. Oclusão de ambiente (SSAO/GTAO) como opção do menu. Referência: BLACK src/d3d/d3d12.cpp (Occlusion, ~500 linhas
+   de backend + shaders) e src/game/ambient_occlusion.cpp. No Def Jam falta achar: o ponto do quadro entre o opaco e
+   o transparente (onde chamar o passe), a matriz de projeção da câmera e o formato do depth.
+3. Mapeamento de teclado (próxima leva, antes do instalador).
+4. Instalador (setup.exe + ícone): decidir exe pronto x compilar a partir da ISO do usuário.
+5. **Depois do jogo 100%:** texturas HD. Sistema de troca de texturas por hash (dump + pasta de substitutas no
+   backend d3d12, que já calcula hash das texturas) e um pacote gerado com upscale por IA, mantido fora do git.
