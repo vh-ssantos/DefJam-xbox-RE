@@ -69,5 +69,9 @@ x86 -> C++, D3D8 -> D3D12, DirectSound -> XAudio2. O port de PS2 (E:\Projetos\De
   SetBufferData/Play; os canais de música 0xBA.. passam por 0x128A60/0x124B50/0x124990. Ao mexer no menu, nenhum
   canal de efeito é montado: o pedido de efeito não chega ao AEMS -> procurar no sistema de eventos
   (sfx/defjam2_eventsys.csi carregado em 0x3CA76 -> 0x2A240) e nos bancos .abk.
+- **Atualização:** com trace por contagem, cada movimento de cursor chama 0x12AB40 (caminho software, 0x12ADB4 ->
+  0x128A60/0x124B50/0x124CE0) e o mixer 0x12B2F0 dobra; o meter mostrou FR subindo 0.10 -> 0.135 durante os
+  movimentos. **Os efeitos de menu tocam.** O silêncio é na luta (bancos por arena, ex. BsmntSFX.abk, carregados
+  na hora) e nas falas (stream). Próximo: medir dentro da luta e seguir o carregamento assíncrono dos bancos.
 - Ferramentas: DEFJAM_DSTRACE=1 (chamadas DSound + energia por canal a cada 5 s), [xbe] trace no config com
   DEFJAM_TRACE_COUNT=1 (só contagem por 5 s, para traçar regiões inteiras), DEFJAM_KTRACE=1 (4 argumentos).
