@@ -29,8 +29,8 @@ bool g_discord = true;  // settings.toml: discord
 
 namespace {
 
-// Application ID do app "Def Jam: Fight for NY" no portal do Discord (0 = ainda não criado; desliga a presença)
-constexpr uint64_t kAppId = 0;
+// Application ID do app "Def Jam Fight for NY" no portal do Discord (público; 0 desliga a presença)
+constexpr uint64_t kAppId = 1561502123772870717ull;
 
 std::mutex g_lock;
 std::string g_details = "Jogando";
