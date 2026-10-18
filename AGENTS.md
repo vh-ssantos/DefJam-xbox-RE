@@ -20,7 +20,7 @@ x86 -> C++, D3D8 -> D3D12, DirectSound -> XAudio2. O port de PS2 (E:\Projetos\De
   principal continuava apresentando). Corrigido um suspeito: o SetTimerCallback do host recusava tempo no passado e o
   relógio periódico do jogo (0xD7DE0 arma anterior+período) morreria se a thread atrasasse um período; agora dispara já.
   Log "defjam: timer pedido ... no passado" (DEFJAM_LOG=1) mostra se isso acontece. Ainda não reproduzido de novo.
-- Toques de 0.2 s às vezes se perdem (telas com vídeo/diálogo); o padrão do live.ps1 agora é 0.4 s.
+- Direções seguradas 0.4 s repetem nos menus (anda 2 casas): use "RIGHT 0.15". Toques de 0.2 s às vezes se perdem (telas com vídeo/diálogo); o padrão do live.ps1 agora é 0.4 s.
 
 ## Diagnóstico
 - **Teste ao vivo (o melhor):** tools/live.ps1 start | press "A" "DOWN 0.3" ... | shot <nome> | stop. O jogo lê os
@@ -58,7 +58,9 @@ x86 -> C++, D3D8 -> D3D12, DirectSound -> XAudio2. O port de PS2 (E:\Projetos\De
 | 0x27CE74 | XPP_GamepadType | push antes de XInputOpen |
 | 0x216140 | D3DDevice_SetPalette | grava device+0xF98+estágio*4; sem ele textos P8 (0x0B) ficavam com fundo preto |
 
-## Som: efeitos e falas mudos (investigação em andamento, 2026-10-18)
+## Som: efeitos e falas mudos (RESOLVIDO pelo downmix 5.1, 2026-10-18)
+- O usuário confirmou no Battle: golpes, plateia, narrador e falas voltaram com o downmix (estavam no central/
+  traseiros). Desempenho medido depois (XBE_PERF=1 + DEFJAM_LOG=1): 60.0 fps em menus e luta, ~1 ms/quadro de CPU.
 - Música OK; golpes, provocações e falas não tocam (relato do usuário).
 - Arquitetura: motor AEMS da EA. Música = stream mixado em software num buffer DSound de **6 canais** (PCM 48 kHz,
   B0165A00, loop de 0x7080 bytes, o jogo lê GetCurrentPosition). Há também 180 vozes DSound mono **Xbox ADPCM**
