@@ -116,7 +116,7 @@ std::vector<LivePress> ReadLiveCommands(const char* path) {
         char line[160];
         while (std::fgets(line, sizeof line, f)) {
             char b[64];
-            double len = 0.2;
+            double len = 0.4;  // toques de 0.2 s às vezes se perdem (telas com vídeo, diálogos)
             if (line[0] != '#' && std::sscanf(line, "%63s %lf", b, &len) >= 1) v.push_back({b, len});
         }
         std::fclose(f);

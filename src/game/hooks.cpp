@@ -11,10 +11,13 @@
 #include <chrono>
 #include <condition_variable>
 #include <cstring>
+#include <atomic>
 #include <mutex>
+#include <unordered_map>
 
 #include "core/log.h"
 #include "cpu/x86_ops.h"
+#include "kernel/memory.h"
 #include "xdk/hle.h"
 
 namespace {
@@ -52,6 +55,77 @@ X86_FUNC(sub_00219B90) {
 DEFJAM_DSOUND_NOOP(0025927B)  // SetPitch
 DEFJAM_DSOUND_NOOP(00259297)  // SetLFO
 DEFJAM_DSOUND_NOOP(002592B3)  // SetEG
+
+// IDirectSoundBuffer_PlayEx (0x259347) e Pause / PauseEx (0x2593A7 / 0x2593C3): fora do runtime; o corpo original
+// roda sobre os objetos do host sem tocar nada (as falas das cutscenes não andavam e a cena congelava). Montados com
+// as versões do host de Play (0x259323), Stop (0x25936B) e GetStatus (0x259407): Play com flags 0 retoma da posição.
+namespace {
+constexpr uint32_t kBufferPlay = 0x259323, kBufferStop = 0x25936B, kBufferGetStatus = 0x259407;
+std::mutex g_pauseLock;
+std::unordered_map<uint32_t, uint32_t> g_pausedFlags;  // buffer pausado -> flags de Play para retomar (1 = loop)
+
+void LogFirst(const char* what, uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3) {
+    static std::atomic<int> n{0};
+    if (n++ < 40) LOGI("defjam: %s(%08X, %08X, %08X, %08X)", what, a0, a1, a2, a3);
+}
+
+// dwPause: 0 retoma, 1 pausa (2, sincronizar, tratado como retomar)
+void PauseBuffer(X86Context& ctx, uint32_t buffer, uint32_t pause) {
+    if (pause == 1) {
+        const uint32_t status = ::mem::AllocSystem(4);
+        ::kernel::CallGuest(ctx, kBufferGetStatus, {buffer, status});
+        const uint32_t s = ::kernel::R32(status);
+        ::mem::FreeSystem(status);
+        if (!(s & 1)) return;  // não estava tocando
+        {
+            std::lock_guard<std::mutex> lock(g_pauseLock);
+            g_pausedFlags[buffer] = (s & 4) ? 1u : 0u;
+        }
+        ::kernel::CallGuest(ctx, kBufferStop, {buffer});
+    } else {
+        uint32_t flags;
+        {
+            std::lock_guard<std::mutex> lock(g_pauseLock);
+            auto it = g_pausedFlags.find(buffer);
+            if (it == g_pausedFlags.end()) return;
+            flags = it->second;
+            g_pausedFlags.erase(it);
+        }
+        ::kernel::CallGuest(ctx, kBufferPlay, {buffer, 0, 0, flags});
+    }
+}
+}  // namespace
+
+// PlayEx(this, REFERENCE_TIME rtTimeStamp, DWORD dwFlags): toca agora
+X86_FUNC(sub_00259347) {
+    (void)base;
+    ::kernel::Args a{ctx};
+    LogFirst("PlayEx", a[0], a[1], a[2], a[3]);
+    {
+        std::lock_guard<std::mutex> lock(g_pauseLock);
+        g_pausedFlags.erase(a[0]);
+    }
+    const uint32_t r = ::kernel::CallGuest(ctx, kBufferPlay, {a[0], 0, 0, a[3]});
+    ::kernel::Return(ctx, r, 4);
+}
+
+// Pause(this, DWORD dwPause)
+X86_FUNC(sub_002593A7) {
+    (void)base;
+    ::kernel::Args a{ctx};
+    LogFirst("Pause", a[0], a[1], 0, 0);
+    PauseBuffer(ctx, a[0], a[1]);
+    ::kernel::Return(ctx, 0, 2);
+}
+
+// PauseEx(this, REFERENCE_TIME rtTimeStamp, DWORD dwPause)
+X86_FUNC(sub_002593C3) {
+    (void)base;
+    ::kernel::Args a{ctx};
+    LogFirst("PauseEx", a[0], a[1], a[2], a[3]);
+    PauseBuffer(ctx, a[0], a[3]);
+    ::kernel::Return(ctx, 0, 4);
+}
 
 // D3DDevice_SetTimerCallback(ULONGLONG time, D3DCALLBACK callback, DWORD context), stdcall, 4 dwords. Fora das
 // assinaturas do SDK; o original arma o alarme do PTIMER da NV2A pelo miniport (+0x1C28), que o host não tem. O jogo

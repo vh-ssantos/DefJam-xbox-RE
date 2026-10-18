@@ -70,7 +70,7 @@ void Write(Level lv, const char* fmt, ...) {
     n = std::min(n, int(sizeof(line)) - 1);
     if (g_file) {
         std::fwrite(line, 1, size_t(n), g_file);
-        if (lv >= Level::Warn) std::fflush(g_file);
+        if (lv >= Level::Warn || !kVerbose) std::fflush(g_file);  // (DefJam) com DEFJAM_LOG, grava na hora
     }
     std::fwrite(line, 1, size_t(n), stderr);
 }

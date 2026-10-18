@@ -12,7 +12,13 @@ x86 -> C++, D3D8 -> D3D12, DirectSound -> XAudio2. O port de PS2 (E:\Projetos\De
 ## Estado (2026-10-17)
 - Boot -> vídeos (START pula) -> título -> autosave YES -> menu -> Battle -> One on One -> escolha de lutador ->
   arena (Foundation) -> LUTA rodando (Blaze x Doc, testado 1:20 sem cair). 60 fps nos menus. Perfil salvo no HD virtual.
-- Autosave YES funcionou ao vivo; o travamento visto antes foi com botões rápidos/controle do usuário junto.
+- História: perfil -> cutscene de abertura inteira -> Fighter Decision -> Sketch Artist (voz) -> cutscene do D-Mob ->
+  Choose Style (vídeo na tela de projeção) -> cena da academia -> 1ª luta (tutorial x House): socos, chutes e golpes
+  fortes acertam e o tutorial avança.
+- **Travamentos intermitentes (a investigar):** às vezes o YES do autosave não anda, e uma vez a 1ª cutscene da
+  história congelou num close (o laço principal continuava apresentando quadros). Na repetição os dois passaram.
+  Suspeita: corrida entre threads do host (ex.: timer/vblank chamando código do jogo em paralelo) ou toques perdidos.
+- Toques de 0.2 s às vezes se perdem (telas com vídeo/diálogo); o padrão do live.ps1 agora é 0.4 s.
 
 ## Diagnóstico
 - **Teste ao vivo (o melhor):** tools/live.ps1 start | press "A" "DOWN 0.3" ... | shot <nome> | stop. O jogo lê os
@@ -45,7 +51,7 @@ x86 -> C++, D3D8 -> D3D12, DirectSound -> XAudio2. O port de PS2 (E:\Projetos\De
 | 0x2590D1 / 0x2590F8 / 0x259149 | IDirectSound DownloadEffectsImage / GetEffectData / CommitEffectData | config |
 | 0x25927B / 0x259297 / 0x2592B3 | IDirectSoundBuffer SetPitch / SetLFO / SetEG | no-op em hooks.cpp |
 | 0x2592CF / 0x259383 | IDirectSoundBuffer SetFilter / StopEx | config |
-| 0x2593A7 / 0x2593C3 | provável IDirectSoundBuffer Pause / PauseEx | ainda não tratados |
-| 0x259347 | provável IDirectSoundBuffer PlayEx | ainda não tratado |
+| 0x2593A7 / 0x2593C3 | IDirectSoundBuffer Pause / PauseEx | hooks.cpp: Stop + Play retomando (nunca chamados até a 1ª luta da história) |
+| 0x259347 | IDirectSoundBuffer PlayEx | hooks.cpp: Play do host |
 | 0x27CE74 | XPP_GamepadType | push antes de XInputOpen |
 | 0x216140 | D3DDevice_SetPalette | grava device+0xF98+estágio*4; sem ele textos P8 (0x0B) ficavam com fundo preto |
