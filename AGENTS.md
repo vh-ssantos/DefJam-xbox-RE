@@ -28,6 +28,10 @@ x86 -> C++, D3D8 -> D3D12, DirectSound -> XAudio2. O port de PS2 (E:\Projetos\De
 - render_percent = % da altura da saída (225 = supersampling 1620p numa janela de 720p): 60 fps cravados na RX 7800 XT.
 - Widescreen é nativo do jogo: com saída >= 3:2 o runtime reporta TV widescreen e o jogo abre a câmera (testado 16:9
   e 4:3, proporções corretas nos dois).
+- Menu de opções (src/common/menu.cpp): F10 ou BACK+START. Modo de tela, resolução (lista do monitor), escala de
+  renderização 50-300%, aniso, V-Sync, contador de FPS; vale na hora e salva. Navegação própria alimentada pelo
+  gancho do controle (qualquer controle) e teclado; com o menu aberto o jogo não vê o controle (e só volta a ver
+  depois de soltar tudo). Testável pelo live.ps1: "BACK+START 0.3".
 - Ícone: tools/make_icon.js tira o ícone oficial do dashboard ($XTIMAGE, XPR0 DXT1 128x128) do default.xbe e o
   CMake embute num .rc gerado na pasta de build (nada do jogo vai para o git).
 

@@ -15,6 +15,7 @@
 
 #include "app/app.h"
 #include "core/input.h"
+#include "common/menu.h"
 #include "gpu/backend.h"
 
 namespace {
@@ -166,6 +167,28 @@ void PadScript(int port, input::Pad& pad) {
     }
 }
 
+// controle 0: script de teste, depois BACK+START abre/fecha o menu de opções; com o menu aberto o jogo não vê o controle
+void PadHook(int port, input::Pad& pad) {
+    PadScript(port, pad);
+    if (port != 0) return;
+    static bool combo = false, hold_off = false;
+    const bool both = (pad.buttons & 0x30) == 0x30;  // START e BACK
+    if (both && !combo) defjam::ToggleMenu();
+    combo = both;
+    defjam::FeedPad(pad);
+    const bool any = pad.buttons || pad.analog[0] || pad.analog[1] || pad.analog[2] || pad.analog[3] ||
+                     pad.analog[6] || pad.analog[7];
+    // menu aberto: o jogo não vê o controle; ao fechar, só volta a ver depois de tudo solto (o B que fechou não vira B
+    // no jogo)
+    if (defjam::MenuOpen() || combo) hold_off = true;
+    else if (!any) hold_off = false;
+    if (hold_off) {
+        const bool connected = pad.connected;
+        pad = input::Pad{};
+        pad.connected = connected;
+    }
+}
+
 }  // namespace
 
 // what the runtime asks of the game; strings must be set, hooks may stay null
@@ -185,8 +208,8 @@ const app::GameInfo app::kGame = {
     .init = nullptr,
     .loaded = nullptr,
     .window = PlaceWindow,
-    .message = nullptr,
-    .ui = nullptr,
-    .pad = PadScript,
+    .message = defjam::Message,
+    .ui = defjam::DrawUi,
+    .pad = PadHook,
     .rumble = nullptr,
 };
