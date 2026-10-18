@@ -9,6 +9,8 @@ struct Pad;
 namespace defjam {
 
 bool MenuOpen();
+// a janela do jogo (GameInfo::window), para esconder o cursor do mouse parado
+void SetWindow(void* hwnd);
 void ToggleMenu();
 // o controle 0 como o jogador o segura (antes de o menu tirá-lo do jogo): navega no menu
 void FeedPad(const input::Pad& pad);

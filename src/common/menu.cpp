@@ -23,6 +23,7 @@
 
 #include "app/app.h"
 #include "common/menu.h"
+#include "common/occlusion.h"
 #include "core/input.h"
 
 namespace defjam {
@@ -30,6 +31,7 @@ namespace defjam {
 namespace {
 
 std::atomic<bool> g_open{false};
+HWND g_hwnd = nullptr;
 bool g_show_fps = false;
 int g_row = 0;
 
@@ -82,7 +84,7 @@ int IndexOf(const std::vector<T>& v, const T& x) {
 }
 int Wrap(int i, int n) { return (i % n + n) % n; }
 
-constexpr int kRows = 7;  // 6 opções + Fechar
+constexpr int kRows = 8;  // 7 opções + Fechar
 
 // desenha uma linha; selecionada se index == g_row. Clique nas setas também muda. Devolve -1, 0 ou +1.
 int Row(int index, const char* label, const std::string& value, int nav_step) {
@@ -183,7 +185,12 @@ void DrawPanel() {
         s.vsync = !s.vsync;
         save = true;
     }
-    if (Row(5, "Mostrar FPS", g_show_fps ? "Sim" : "Nao", step)) g_show_fps = !g_show_fps;
+    static const char* kAo[] = {"Desligada", "SSAO", "GTAO (melhor)"};
+    if (int st = Row(5, "Oclusao de ambiente", kAo[g_ao_mode % 3], step)) {
+        g_ao_mode = uint32_t(Wrap(int(g_ao_mode) + st, 3));
+        save = true;
+    }
+    if (Row(6, "Mostrar FPS", g_show_fps ? "Sim" : "Nao", step)) g_show_fps = !g_show_fps;
 
     ImGui::Separator();
     // Fechar: selecionado vira vermelho; A/Enter ou clique fecha
@@ -234,8 +241,32 @@ void FeedPad(const input::Pad& pad) {
     }
 }
 
+void SetWindow(void* hwnd) { g_hwnd = static_cast<HWND>(hwnd); }
+
 void DrawUi(double fps) {
     ImGuiIO& io = ImGui::GetIO();
+    // o cursor do mouse some depois de 2 s parado em cima do jogo (volta ao mexer e fica sempre com o menu aberto)
+    {
+        using clock = std::chrono::steady_clock;
+        static ImVec2 last{-1, -1};
+        static clock::time_point moved = clock::now();
+        static bool hidden = false;
+        if (io.MousePos.x != last.x || io.MousePos.y != last.y) {
+            last = io.MousePos;
+            moved = clock::now();
+        }
+        const bool hide = !MenuOpen() && clock::now() - moved > std::chrono::seconds(2);
+        if (hide) ImGui::SetMouseCursor(ImGuiMouseCursor_None);
+        // o backend do ImGui só aplica o cursor no WM_SETCURSOR da janela: pede um quando o estado muda e o mouse
+        // está sobre a área do jogo
+        if (hide != hidden && g_hwnd) {
+            POINT p;
+            RECT r;
+            if (GetCursorPos(&p) && ScreenToClient(g_hwnd, &p) && GetClientRect(g_hwnd, &r) && PtInRect(&r, p))
+                PostMessageW(g_hwnd, WM_SETCURSOR, WPARAM(g_hwnd), MAKELPARAM(HTCLIENT, WM_MOUSEMOVE));
+        }
+        hidden = hide;
+    }
     io.FontGlobalScale = std::max(1.0f, io.DisplaySize.y / 540.0f);
     if (g_show_fps) {
         ImDrawList* dl = ImGui::GetForegroundDrawList();

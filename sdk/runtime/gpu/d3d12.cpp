@@ -2566,6 +2566,7 @@ void D3D12Backend::Clear(const State& s, uint32_t count, const uint8_t* rects, u
         fprintf(cap_, "%04u clear rt %08X ds %08X flags %X color %08X z %.3f\n", cap_i_++, s.rt.data, s.zs.data, flags,
                 color, z);
     }
+    if (ext_) ext_->BeforeClear(*this, s, FindTarget(s.rt, false), FindTarget(s.zs, true), flags);
     Target* rt = (flags & kClearTarget) ? EnsureTarget(s.rt, false) : nullptr;
     Target* ds = (flags & (kClearZ | kClearStencil)) ? EnsureTarget(s.zs, true) : nullptr;
     uint32_t gw;

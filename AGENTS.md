@@ -35,6 +35,17 @@ x86 -> C++, D3D8 -> D3D12, DirectSound -> XAudio2. O port de PS2 (E:\Projetos\De
 - Ícone: tools/make_icon.js tira o ícone oficial do dashboard ($XTIMAGE, XPR0 DXT1 128x128) do default.xbe e o
   CMake embute num .rc gerado na pasta de build (nada do jogo vai para o git).
 
+## Oclusão de ambiente (src/common/occlusion.cpp)
+- gpu::Extension do runtime (sem mexer no backend, só um gancho novo BeforeClear em ext.h/d3d12.cpp). Shaders
+  SSAO/GTAO do BLACK, passes via Context::Pass (8 constantes), cena lida por Feedback e multiplicada.
+- Momento: o Def Jam limpa a PROFUNDIDADE antes do HUD (no Xbox D3DCLEAR_ZBUFFER = 0x1, TARGET = 0xF0!). A oclusão
+  roda nesse clear se a cena 3D (desenhos com zwrite) foi para o mesmo alvo.
+- Câmera: matriz de projeção achada varrendo a RAM (formato OpenGL: m11 = -1, m10 = m14 = -1.00002, perto 1, longe
+  50000; unidades ~cm). Endereço do objeto câmera (ex. 812B9BC0) guardado e conferido; procura de novo se sumir.
+  distância = m14 / (profundidade - m11*m10). Raio padrão 40 (DEFJAM_AO_RADIUS).
+- Depuração: DEFJAM_AO_SHOW=1 (só a oclusão), DEFJAM_AO_SHOW=z (profundidade). Menu: Desligada/SSAO/GTAO.
+- 60 fps com GTAO na luta (RX 7800 XT).
+
 ## Diagnóstico
 - **Teste ao vivo (o melhor):** tools/live.ps1 start | press "A" "DOWN 0.3" ... | shot <nome> | stop. O jogo lê os
   botões de runs/pad_cmd.txt (DEFJAM_PAD_CMD), então dá para olhar a tela e decidir o próximo botão. START pula os
@@ -93,7 +104,7 @@ x86 -> C++, D3D8 -> D3D12, DirectSound -> XAudio2. O port de PS2 (E:\Projetos\De
 
 ## Fila de trabalho (combinada com o usuário em 2026-10-18)
 1. Cobrir o resto do jogo (modos, arenas, história) + relatos do usuário (Pendente teste do usuário.md no DefJam-RE).
-2. Oclusão de ambiente (SSAO/GTAO) como opção do menu. Referência: BLACK src/d3d/d3d12.cpp (Occlusion, ~500 linhas
+2. ~~Oclusão de ambiente~~ FEITA (2026-10-18), ver seção abaixo. Referência: BLACK src/d3d/d3d12.cpp (Occlusion, ~500 linhas
    de backend + shaders) e src/game/ambient_occlusion.cpp. No Def Jam falta achar: o ponto do quadro entre o opaco e
    o transparente (onde chamar o passe), a matriz de projeção da câmera e o formato do depth.
 3. Mapeamento de teclado (próxima leva, antes do instalador).

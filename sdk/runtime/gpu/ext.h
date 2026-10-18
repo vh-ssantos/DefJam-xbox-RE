@@ -73,6 +73,8 @@ public:
     // a new target: scale from the render scale, fmt of a colour target
     virtual void MakeTarget(const Surface&, bool /*depth*/, uint32_t /*gw*/, uint32_t /*gh*/, float& /*scale*/, DXGI_FORMAT& /*fmt*/) {}
     virtual void BeginDraw(const State&) {}
+    // (DefJam) antes de um Clear do jogo, com os alvos que ele limpa (nulos se não existem); flags como Backend::Clear
+    virtual void BeforeClear(Context&, const State&, Target* /*rt*/, Target* /*ds*/, uint32_t /*flags*/) {}
     virtual void EndDraw() {}
     // targets bound for a draw; true binds them again
     virtual bool Bound(Context&, const State&, Target* /*rt*/, Target* /*ds*/, bool /*pretransformed*/) { return false; }

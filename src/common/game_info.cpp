@@ -16,12 +16,14 @@
 #include "app/app.h"
 #include "core/input.h"
 #include "common/menu.h"
+#include "common/occlusion.h"
 #include "gpu/backend.h"
 
 namespace {
 
 // DEFJAM_WINDOW_MONITOR=<n> (testes): abre a janela no monitor n (0 = principal) sem roubar o foco.
 void PlaceWindow(void* hwnd) {
+    defjam::SetWindow(hwnd);
     const char* env = std::getenv("DEFJAM_WINDOW_MONITOR");
     if (!env) return;
     const int want = std::atoi(env);
@@ -202,10 +204,10 @@ const app::GameInfo app::kGame = {
     .splash = L"splash",
     .missing = L"Coloque o jogo na pasta assets: a imagem do disco (.iso) ou o default.xbe com as pastas ao lado.",
     .images = {{"default.xbe", "DefJamFFNY"}},
-    .options = {},
+    .options = {{"ambient_occlusion", nullptr, &defjam::g_ao_mode}},
     .load = nullptr,
     .save = nullptr,
-    .init = nullptr,
+    .init = defjam::InstallOcclusion,
     .loaded = nullptr,
     .window = PlaceWindow,
     .message = defjam::Message,
