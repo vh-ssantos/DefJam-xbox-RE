@@ -8,7 +8,8 @@ set "VSCMAKE=E:\Program Files\Visual Studio\Common7\IDE\CommonExtensions\Microso
 set "PATH=E:\Tools\llvm\bin;%VSCMAKE%\CMake\bin;%VSCMAKE%\Ninja;%PATH%"
 if not exist out mkdir out
 echo [1/3] configurando
-cmake --preset release > out\compilar.log 2>&1 || goto :fail
+if not defined DEFJAM_EMBED_ICON set "DEFJAM_EMBED_ICON=ON"
+cmake --preset release -DDEFJAM_EMBED_ICON=%DEFJAM_EMBED_ICON% > out\compilar.log 2>&1 || goto :fail
 findstr /b /l /c:"[symbols]" config\game.toml >nul 2>nul && goto :game
 echo [2/3] simbolos do XDK
 cmake --build out\build\release --target xbe_symbols >> out\compilar.log 2>&1 || goto :fail

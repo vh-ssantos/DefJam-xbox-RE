@@ -141,3 +141,17 @@ x86 -> C++, D3D8 -> D3D12, DirectSound -> XAudio2. O port de PS2 (E:\Projetos\De
   Para achar comandos de script: "push handler; push nome" perto do nome; trace por contagem (DEFJAM_TRACE_COUNT=1 +
   [xbe] trace com a faixa 0x40000-0x60000) mostra com * as funções novas na ação.
 - DEFJAM_HDD=<pasta> (SDK app/main.cpp): o live.ps1 usa hdd-teste, os testes não mexem nos saves do jogador.
+
+## Distribuição (2026-10-18)
+- Repositório público: https://github.com/vh-ssantos/DefJam-xbox-RE (sem nada do jogo; auditado).
+- tools/release.ps1 -> dist/DefJam-FFNY-PC-v<versão>.zip: exe compilado com DEFJAM_EMBED_ICON=OFF (sem a arte do
+  jogo; o exe tira o ícone do XBE do jogador em tempo de execução, src/common/icon.cpp), assets/ vazia com
+  instruções, README, licenças. Testado em pasta limpa com a ISO em assets: título em 1920x1080.
+- Instalação: (1) ISO em assets, como o BLACK; (2) abrir sem jogo -> pergunta e copia a ISO (app/game_files.cpp
+  PickIso, só quando não acha assets em nenhuma pasta acima do exe).
+- Atualização automática (src/common/update.cpp): GitHub Releases /latest de vh-ssantos/DefJam-xbox-RE; tag > versão
+  do exe (CMakeLists DEFJAM_VERSION) -> menu "Versão: Nova (A atualiza)": baixa o primeiro .zip da release, renomeia o
+  exe em uso para .old e extrai DefJamFFNY.exe com tar.exe. DEFJAM_UPDATE_REPO=dono/repo para testar.
+  Para publicar: subir DEFJAM_VERSION, rodar release.ps1 e criar a release com tag vX.Y.Z e o zip anexado.
+- Discord (src/common/discord.cpp): IPC local, falta o Application ID (kAppId = 0 desliga). Presença por comandos
+  de script: StartMainMenu 0x46610, StartBattleMode 0x46410, StartStoryMode 0x46450, StartGame 0x46E40.

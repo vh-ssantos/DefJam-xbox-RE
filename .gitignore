@@ -34,3 +34,6 @@ settings.toml
 
 # (DefJam) capturas e registros dos boots de teste: imagens do jogo, ficam locais
 /runs/
+
+# pacotes de release (tools/release.ps1)
+/dist/
