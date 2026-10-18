@@ -1,4 +1,4 @@
-// Oclusão de ambiente (SSAO / GTAO, shaders do port do BLACK) como extensão do renderer do runtime (gpu::Extension).
+// Oclusão de ambiente (SSAO / GTAO, shaders próprios) como extensão do renderer do runtime (gpu::Extension).
 // Entra uma vez por quadro, quando o jogo limpa a profundidade depois da cena 3D (antes do HUD), ou, sem esse clear,
 // no primeiro desenho com Z ALWAYS e sem escrever Z: fica sobre cenário e lutadores e por baixo do placar.
 // A câmera vem da matriz de projeção do jogo, achada na RAM (formato de linhas do D3D com w = +-z: a do Def Jam é
@@ -77,141 +77,171 @@ bool CameraProjection(float m[16]) {
 
 // ---- shaders ----------------------------------------------------------------------------------------------------
 
-// b1: p0 = 1/xs, 1/ys, distância = zp.x / (depth - zp.y); p1 = raio (unidades do jogo), maior alcance em pixels,
-// passo do borrão (x, y). t0 profundidade, t1 oclusão do passe anterior (oclusão, distância), t2 a cor da cena.
+// Shaders próprios deste projeto. SSAO: "Alchemy AO" (McGuire et al., HPG 2011) com amostras numa espiral de Vogel
+// e ruído "interleaved gradient" (Jimenez, 2014). GTAO: Jimenez et al., "Practical Real-Time Strategies for Accurate
+// Indirect Occlusion" (2016), como descrito também no XeGTAO da Intel (MIT). Borrão bilateral separável.
+// b1: p0 = 1/xs, 1/ys, distância = p0.z / (profundidade - p0.w); p1 = raio (unidades do jogo), alcance máximo em
+// pixels, direção do borrão (x, y). t0 profundidade, t1 oclusão anterior (oclusão, distância), t2 cor da cena.
 const char* kAoHlsl = R"(
 cbuffer P : register(b1) { float4 p0; float4 p1; };
 Texture2D<float> depth : register(t0);
 Texture2D<float2> ao : register(t1);
 Texture2D<float4> scene : register(t2);
+
 float4 vs(uint id : SV_VertexID) : SV_Position {
-    float2 t = float2((id << 1) & 2, id & 2);
-    return float4(t * float2(2, -2) + float2(-1, 1), 0, 1);
+    float2 uv = float2(id == 1 ? 2 : 0, id == 2 ? 2 : 0);
+    return float4(uv.x * 2 - 1, 1 - uv.y * 2, 0, 1);
 }
-float2 Size() { uint w, h; depth.GetDimensions(w, h); return float2(w, h); }
-float3 View(float2 px) {
-    float2 sz = Size();
-    int2 p = clamp(int2(px), int2(0, 0), int2(sz) - 1);
-    float z = p0.z / (depth.Load(int3(p, 0)) - p0.w);
-    float2 ndc = (p + 0.5) / sz * float2(2, -2) + float2(-1, 1);
-    return float3(ndc * p0.xy * z, z);
+
+int2 TargetSize() { uint w, h; depth.GetDimensions(w, h); return int2(w, h); }
+
+// posição no espaço da câmera do centro do pixel p (z = distância, positiva para a frente)
+float3 ViewPos(float2 p) {
+    int2 size = TargetSize();
+    int2 q = clamp(int2(p), 0, size - 1);
+    float dist = p0.z / (depth.Load(int3(q, 0)) - p0.w);
+    float2 ndc = float2((q.x + 0.5) / size.x * 2 - 1, 1 - (q.y + 0.5) / size.y * 2);
+    return float3(ndc * p0.xy * dist, dist);
 }
-float3 Normal(float2 pos, float3 c) {
-    float3 l = View(pos - float2(1, 0));
-    float3 r = View(pos + float2(1, 0));
-    float3 u = View(pos - float2(0, 1));
-    float3 d = View(pos + float2(0, 1));
-    float3 dx = abs(r.z - c.z) < abs(c.z - l.z) ? r - c : c - l;
-    float3 dy = abs(d.z - c.z) < abs(c.z - u.z) ? d - c : c - u;
-    return normalize(cross(dx, dy));
+
+// normal pela profundidade: de cada lado, a diferença com o vizinho mais parecido (não atravessa bordas)
+float3 ViewNormal(float2 p, float3 c) {
+    float3 dx0 = c - ViewPos(p - float2(1, 0)), dx1 = ViewPos(p + float2(1, 0)) - c;
+    float3 dy0 = c - ViewPos(p - float2(0, 1)), dy1 = ViewPos(p + float2(0, 1)) - c;
+    float3 dx = abs(dx0.z) < abs(dx1.z) ? dx0 : dx1;
+    float3 dy = abs(dy0.z) < abs(dy1.z) ? dy0 : dy1;
+    float3 nn = normalize(cross(dy, dx));
+    return dot(nn, c) > 0 ? -nn : nn;  // sempre virada para a câmera
 }
-static const float kDither[16] = {0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5};
+
+float Noise(float2 p) { return frac(52.9829189 * frac(dot(p, float2(0.06711056, 0.00583715)))); }
+
+// o raio do mundo em pixels nesta distância, limitado a p1.y; devolve o fator de encolhimento
+float RadiusPixels(float dist, out float shrink) {
+    float r = p1.x / (dist * min(p0.x, p0.y)) * 0.5 * TargetSize().y;
+    shrink = min(1.0, p1.y / max(r, 1e-3));
+    return r * shrink;
+}
+
 float2 occlusion(float4 pos : SV_Position) : SV_Target {
-    float3 c = View(pos.xy);
-    float2 sz = Size();
-    float2 rad = p1.x * 0.5 * sz / (p0.xy * c.z);
-    float span = max(rad.x, rad.y);
-    if (span < 1 || c.z <= 0) return float2(1, c.z);
-    float3 n = Normal(pos.xy, c);
-    float k = min(1, p1.y / span);
-    float R = p1.x * k;
-    int2 cell = int2(pos.xy) & 3;
-    float turn = kDither[cell.y * 4 + cell.x] * (6.2831853 / 16);
-    float a = 0;
-    for (int i = 0; i < 16; i++) {
-        float f = (i + 0.5) / 16;
-        float t = i * 2.3999632 + turn;
-        float3 v = (View(pos.xy + float2(cos(t), sin(t)) * rad * (k * f)) - c) / R;
+    float3 c = ViewPos(pos.xy);
+    if (!(c.z > 0)) return float2(1, c.z);
+    float shrink;
+    float rpx = RadiusPixels(c.z, shrink);
+    if (rpx < 1.5) return float2(1, c.z);
+    float3 n = ViewNormal(pos.xy, c);
+    float radius = p1.x * shrink;
+    float rot = Noise(pos.xy) * 6.2831853;
+    const int kTaps = 12;
+    float sum = 0;
+    [unroll] for (int i = 0; i < kTaps; i++) {
+        float t = (i + 0.5) / kTaps;
+        float ang = i * 2.39996323 + rot;  // ângulo de ouro
+        float2 off = float2(cos(ang), sin(ang)) * sqrt(t) * rpx;
+        float3 v = ViewPos(pos.xy + off) - c;
         float vv = dot(v, v);
-        float w = max(1 - vv, 0);
-        a += w * w * w * max((dot(v, n) - 0.05) / (vv + 0.01), 0);
+        float fall = saturate(1 - vv / (radius * radius));
+        sum += fall * max(0, dot(v, n) - 0.03 * radius) / (vv + 0.01 * radius * radius);
     }
-    return float2(max(1 - a * 0.25, 0), c.z);
+    // termo do Alchemy, sem unidade: vezes o raio (o sigma do artigo) e 2/amostras, com intensidade 0.5
+    float a = saturate(1 - sum * radius * (2.0 / kTaps) * 0.5);
+    return float2(a, c.z);
 }
-static const float kHalfPi = 1.5707963;
+
 float2 gtao(float4 pos : SV_Position) : SV_Target {
-    float3 c = View(pos.xy);
-    float2 sz = Size();
-    float2 rad = p1.x * 0.5 * sz / (p0.xy * c.z);
-    float span = max(rad.x, rad.y);
-    if (span < 1 || c.z <= 0) return float2(1, c.z);
-    float3 n = Normal(pos.xy, c);
-    float3 v = normalize(-c);
-    float k = min(1, p1.y / span);
-    float R = p1.x * k;
-    int2 cell = int2(pos.xy) & 3;
-    float slice_noise = kDither[cell.y * 4 + cell.x] / 16;
-    float step_noise = kDither[cell.x * 4 + cell.y] / 16;
-    float vis = 0;
-    for (int s = 0; s < 3; s++) {
-        float phi = (s + slice_noise) * (kHalfPi * 2 / 3);
+    const float kPi = 3.14159265, kHalfPi = 1.57079633;
+    float3 c = ViewPos(pos.xy);
+    if (!(c.z > 0)) return float2(1, c.z);
+    float shrink;
+    float rpx = RadiusPixels(c.z, shrink);
+    if (rpx < 1.5) return float2(1, c.z);
+    float3 n = ViewNormal(pos.xy, c);
+    float3 viewDir = normalize(-c);
+    float radius = p1.x * shrink;
+    float noiseSlice = Noise(pos.xy);
+    float noiseStep = Noise(pos.yx + 17.0);
+    const int kSlices = 3, kSteps = 4;
+    float visibility = 0;
+    [unroll] for (int s = 0; s < kSlices; s++) {
+        float phi = (s + noiseSlice) / kSlices * kPi;
         float3 dir = float3(cos(phi), sin(phi), 0);
-        float2 omega = float2(dir.x, -dir.y) * rad * k;
-        float3 ortho = dir - dot(dir, v) * v;
-        float3 axis = normalize(cross(ortho, v));
-        float3 pn = n - axis * dot(n, axis);
-        float pn_len = max(length(pn), 1e-4);
-        float cos_n = saturate(dot(pn, v) / pn_len);
-        float an = sign(dot(ortho, pn)) * acos(cos_n);
-        float2 low = float2(cos(an + kHalfPi), cos(an - kHalfPi));
-        float2 hc = low;
-        for (int j = 0; j < 3; j++) {
-            float f = (j + step_noise) / 3;
-            float2 off = omega * (f * f + 1.3 / length(omega));
-            float3 d0 = View(pos.xy + off) - c;
-            float3 d1 = View(pos.xy - off) - c;
-            float2 len = max(float2(length(d0), length(d1)), 1e-4);
-            float2 w = saturate((R - len) / (R * 0.615));
-            float2 sc = float2(dot(d0, v), dot(d1, v)) / len;
-            hc = max(hc, lerp(low, sc, w));
+        float2 omega = float2(dir.x, -dir.y);  // na tela o y desce
+        // plano da fatia (direção e vetor da câmera) e a normal projetada nele
+        float3 orthoDir = dir - dot(dir, viewDir) * viewDir;
+        float3 axis = normalize(cross(orthoDir, viewDir));
+        float3 projN = n - axis * dot(n, axis);
+        float projLen = length(projN);
+        if (projLen < 1e-4) continue;
+        float cosN = saturate(dot(projN, viewDir) / projLen);
+        float nAngle = sign(dot(orthoDir, projN)) * acos(cosN);
+        // cosseno do horizonte mais alto de cada lado; começa no plano tangente da superfície
+        float low0 = cos(nAngle + kHalfPi), low1 = cos(nAngle - kHalfPi);
+        float hc0 = low0, hc1 = low1;
+        [unroll] for (int j = 0; j < kSteps; j++) {
+            float t = (j + noiseStep) / kSteps;
+            float2 off = omega * (t * t * rpx + 1.0);
+            float3 d0 = ViewPos(pos.xy + off) - c;
+            float3 d1 = ViewPos(pos.xy - off) - c;
+            float l0 = length(d0), l1 = length(d1);
+            float w0 = saturate((radius - l0) / (0.6 * radius));
+            float w1 = saturate((radius - l1) / (0.6 * radius));
+            hc0 = max(hc0, lerp(low0, dot(d0, viewDir) / max(l0, 1e-4), w0));
+            hc1 = max(hc1, lerp(low1, dot(d1, viewDir) / max(l1, 1e-4), w1));
         }
-        float h0 = an + clamp(-acos(hc.y) - an, -kHalfPi, kHalfPi);
-        float h1 = an + clamp(acos(hc.x) - an, -kHalfPi, kHalfPi);
-        float sin_n = sin(an);
-        float arc0 = (cos_n + 2 * h0 * sin_n - cos(2 * h0 - an)) / 4;
-        float arc1 = (cos_n + 2 * h1 * sin_n - cos(2 * h1 - an)) / 4;
-        vis += pn_len * (arc0 + arc1);
+        // os horizontes em ângulo, presos ao hemisfério da normal, e o arco visível ponderado pelo cosseno
+        float h0 = nAngle + clamp(-acos(hc1) - nAngle, -kHalfPi, kHalfPi);
+        float h1 = nAngle + clamp(acos(hc0) - nAngle, -kHalfPi, kHalfPi);
+        float sinN = sin(nAngle);
+        float arc0 = (cosN + 2 * h0 * sinN - cos(2 * h0 - nAngle)) * 0.25;
+        float arc1 = (cosN + 2 * h1 * sinN - cos(2 * h1 - nAngle)) * 0.25;
+        visibility += projLen * (arc0 + arc1);
     }
-    return float2(pow(saturate(vis / 3), 2.2), c.z);
+    float a = saturate(visibility / kSlices);
+    return float2(a * a, c.z);  // um pouco mais de contraste, como o expoente do XeGTAO
 }
-float Smooth(float2 pos, out float z) {
-    int2 p = int2(pos);
-    uint w, h;
-    ao.GetDimensions(w, h);
-    int2 hi = int2(w, h) - 1;
-    z = ao.Load(int3(p, 0)).y;
-    float sum = 0, n = 0;
-    for (int i = -2; i <= 2; i++) {
-        float2 s = ao.Load(int3(clamp(p + i * int2(p1.zw), int2(0, 0), hi), 0));
-        float wt = (abs(i) == 2 ? 0.5 : 1) * saturate(2 - abs(s.y - z) / (z * 0.02));
-        sum += s.x * wt;
-        n += wt;
+
+// borrão bilateral de 7 toques na direção p1.zw, sem misturar distâncias diferentes
+float Bilateral(float2 pos, out float dist) {
+    static const float kW[4] = {0.20, 0.17, 0.12, 0.07};
+    int2 size = TargetSize();
+    float2 center = ao.Load(int3(int2(pos), 0));
+    dist = center.y;
+    float sum = center.x * kW[0], wsum = kW[0];
+    [unroll] for (int i = 1; i <= 3; i++) {
+        [unroll] for (int sgn = -1; sgn <= 1; sgn += 2) {
+            int2 q = clamp(int2(pos) + sgn * i * int2(p1.zw), 0, size - 1);
+            float2 s = ao.Load(int3(q, 0));
+            float w = kW[i] * saturate(1 - abs(s.y - dist) / max(dist * 0.03, 1e-3));
+            sum += s.x * w;
+            wsum += w;
+        }
     }
-    return sum / n;
+    return sum / wsum;
 }
+
 float2 blur(float4 pos : SV_Position) : SV_Target {
-    float z;
-    float a = Smooth(pos.xy, z);
-    return float2(a, z);
+    float dist;
+    float a = Bilateral(pos.xy, dist);
+    return float2(a, dist);
 }
-// a cor da cena vezes a oclusão; o alfa fica (os blends do jogo leem)
+
+// cena vezes oclusão; o alfa fica como estava (os blends do jogo leem)
 float4 apply(float4 pos : SV_Position) : SV_Target {
-    float z;
-    float a = Smooth(pos.xy, z);
+    float dist;
+    float a = Bilateral(pos.xy, dist);
     float4 c = scene.Load(int3(int2(pos.xy), 0));
     return float4(c.rgb * a, c.a);
 }
-// depuração: a profundidade crua (realçada) e a distância (faixas a cada 100 unidades)
+
+// depuração: só a oclusão (DEFJAM_AO_SHOW=1) e a profundidade (DEFJAM_AO_SHOW=z)
+float4 show(float4 pos : SV_Position) : SV_Target {
+    float dist;
+    return float4(Bilateral(pos.xy, dist).xxx, 1);
+}
 float4 showz(float4 pos : SV_Position) : SV_Target {
     float d = depth.Load(int3(int2(pos.xy), 0));
-    float z = View(pos.xy).z;
+    float z = ViewPos(pos.xy).z;
     return float4(pow(saturate(d), 256), frac(z / 100), saturate(-z / 1000), 1);
-}
-// depuração: só a oclusão em cinza
-float4 show(float4 pos : SV_Position) : SV_Target {
-    float z;
-    float a = Smooth(pos.xy, z);
-    return float4(a.xxx, 1);
 }
 )";
 

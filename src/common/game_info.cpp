@@ -18,6 +18,7 @@
 #include "common/menu.h"
 #include "common/discord.h"
 #include "common/icon.h"
+#include "common/update.h"
 #include "common/occlusion.h"
 #include "gpu/backend.h"
 
@@ -212,12 +213,14 @@ const app::GameInfo app::kGame = {
     .options = {{"ambient_occlusion", nullptr, &defjam::g_ao_mode},
                 {"skip_intros", &defjam::g_skip_intros, nullptr},
                 {"pause_on_focus_loss", &defjam::g_pause_unfocused, nullptr},
-                {"discord", &defjam::g_discord, nullptr}},
+                {"discord", &defjam::g_discord, nullptr},
+                {"check_updates", &defjam::g_check_updates, nullptr}},
     .load = nullptr,
     .save = nullptr,
     .init = [] {
         defjam::InstallOcclusion();
         defjam::StartDiscord();
+        defjam::StartUpdateCheck();
     },
     .loaded = [] { defjam::ApplyGameIcon(app::Window()); },
     .window = PlaceWindow,

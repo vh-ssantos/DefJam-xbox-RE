@@ -27,6 +27,7 @@
 #include "app/app.h"
 #include "common/menu.h"
 #include "common/occlusion.h"
+#include "common/update.h"
 #include "audio/audio.h"
 #include "core/input.h"
 
@@ -91,7 +92,7 @@ int IndexOf(const std::vector<T>& v, const T& x) {
 }
 int Wrap(int i, int n) { return (i % n + n) % n; }
 
-constexpr int kRows = 13;  // 12 opções + Fechar
+constexpr int kRows = 14;  // 13 opções + Fechar
 char g_name[16] = {};  // nome do próximo User ID, digitado no teclado do PC
 bool g_name_edit = false;
 
@@ -282,6 +283,15 @@ void DrawPanel() {
         std::error_code ec;
         std::filesystem::create_directories(dir, ec);
         ShellExecuteW(nullptr, L"open", dir.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+    }
+    // versão e atualização (GitHub Releases)
+    {
+        const std::string latest = UpdateAvailable(), status = UpdateStatus();
+        const std::string value = !status.empty() ? status
+                                  : latest.empty() ? std::string("v") + Version() + " (em dia)"
+                                                   : "Nova: " + latest + " (A atualiza)";
+        Row(12, "Versao", value, 0);
+        if (g_row == 12 && nav[kAccept] && !latest.empty()) InstallUpdate();
     }
     ImGui::Separator();
     // Fechar: selecionado vira vermelho; A/Enter ou clique fecha
