@@ -104,10 +104,32 @@ std::vector<double> LoadCaptureTimes() {
     return v;
 }
 
+// DEFJAM_PAD_CMD=<arquivo> (testes ao vivo): o arquivo tem linhas "botões [duração]" (ou "CAPTURE") que são
+// executadas em sequência, uma depois da outra, a partir de quando aparecem; o arquivo é apagado ao ser lido.
+struct LivePress {
+    std::string buttons;
+    double len;
+};
+std::vector<LivePress> ReadLiveCommands(const char* path) {
+    std::vector<LivePress> v;
+    if (FILE* f = std::fopen(path, "r")) {
+        char line[160];
+        while (std::fgets(line, sizeof line, f)) {
+            char b[64];
+            double len = 0.2;
+            if (line[0] != '#' && std::sscanf(line, "%63s %lf", b, &len) >= 1) v.push_back({b, len});
+        }
+        std::fclose(f);
+        std::remove(path);
+    }
+    return v;
+}
+
 void PadScript(int port, input::Pad& pad) {
     static const std::vector<ScriptPress> script = LoadPadScript();
     static std::vector<double> captures = LoadCaptureTimes();
-    if (port != 0 || (script.empty() && captures.empty())) return;
+    static const char* live_path = std::getenv("DEFJAM_PAD_CMD");
+    if (port != 0 || (script.empty() && captures.empty() && !live_path)) return;
     static const auto start = std::chrono::steady_clock::now();
     const double t = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
     if (!captures.empty() && t >= captures.front()) {
@@ -117,6 +139,31 @@ void PadScript(int port, input::Pad& pad) {
     pad.connected = true;
     for (const ScriptPress& s : script)
         if (t >= s.at && t <= s.at + s.len) ApplyButtons(s.buttons, pad);
+    if (live_path) {
+        // fila: cada comando segura os botões por len segundos e solta por 0.15 s antes do próximo
+        static std::vector<LivePress> queue;
+        static std::string holding;
+        static double hold_end = 0, next_start = 0, next_read = 0;
+        if (t >= next_read) {
+            next_read = t + 0.1;
+            for (LivePress& c : ReadLiveCommands(live_path)) queue.push_back(c);
+        }
+        if (!holding.empty() && t >= hold_end) holding.clear();
+        if (holding.empty() && t >= next_start && !queue.empty()) {
+            const LivePress c = queue.front();
+            queue.erase(queue.begin());
+            if (c.buttons == "CAPTURE") {
+                gpu::g_capture = true;
+            } else if (c.buttons == "WAIT") {
+                next_start = t + c.len;
+            } else {
+                holding = c.buttons;
+                hold_end = t + c.len;
+                next_start = hold_end + 0.15;
+            }
+        }
+        if (!holding.empty()) ApplyButtons(holding, pad);
+    }
 }
 
 }  // namespace
