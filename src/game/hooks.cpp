@@ -258,3 +258,64 @@ X86_FUNC(sub_00133C00) {
     }
     __imp__sub_00133C00(ctx, base);
 }
+
+// Cheats do próprio jogo (Extras -> Cheats). O objeto da tela é criado por 0x49F40 (thiscall), que registra o
+// comando de script "SubmitCheatCode" com o tratador 0x49D00(this, args, n): args[0] = o texto do código; devolve o
+// texto da resposta (em this+3084). O menu do PC (common/menu.cpp) enfileira um código; PadHook, na thread do jogo,
+// chama ApplyPendingCheat, que usa o mesmo tratador.
+namespace {
+std::atomic<uint32_t> g_cheat_obj{0};
+}  // namespace
+
+X86_EXTERN_FUNC(__imp__sub_00049F40);
+X86_FUNC(sub_00049F40) {
+    g_cheat_obj = ctx.ecx;
+    __imp__sub_00049F40(ctx, base);
+}
+
+namespace defjam {
+void ApplyPendingCheat() {
+    std::string code;
+    if (!TakeCheatRequest(code)) return;
+    const uint32_t obj = g_cheat_obj;
+    if (!obj) {
+        CheatResult("O jogo ainda nao criou a tela de cheats: entre em EXTRAS uma vez e tente de novo.");
+        return;
+    }
+    static uint32_t buf = 0;
+    if (!buf) buf = ::mem::AllocSystem(64);
+    std::memset(::kernel::HostPtr(buf), 0, 64);
+    std::memcpy(::kernel::HostPtr(buf + 16), code.data(), std::min<size_t>(code.size(), 40));
+    ::kernel::W32(buf, buf + 16);  // args[0] = o texto
+    X86Context& ctx = ::kernel::CurrentContext();
+    const X86Context saved = ctx;
+    ctx.ecx = obj;
+    const uint32_t msg = ::kernel::CallGuest(ctx, 0x49D00, {buf, 1});
+    std::string text = msg ? ::kernel::ReadCString(msg, 200) : std::string();
+    ctx = saved;
+    LOGI("defjam: cheat %s -> %s", code.c_str(), text.c_str());
+    // a tela do jogo recebe "TYPE=n&VALUE=v" quando o código vale (2 = pontos de recompensa), ou um texto de erro
+    std::string shown = text.empty() ? "(sem resposta)" : text;
+    if (text.rfind("TYPE=2&VALUE=", 0) == 0) shown = "Aceito: +" + text.substr(13) + " pontos de recompensa";
+    else if (text.rfind("TYPE=", 0) == 0) shown = "Aceito (" + text + ")";
+    CheatResult(shown);
+}
+}  // namespace defjam
+
+// CreateNewUser(args, n) do script (DONE no teclado do User ID): args[0] = o nome. Com um nome
+// digitado no teclado do PC (menu F10), ele entra no lugar do que foi escolhido na tela.
+X86_EXTERN_FUNC(__imp__sub_00052820);
+X86_FUNC(sub_00052820) {
+    std::string name;
+    if (defjam::TakeTypedName(name)) {
+        static uint32_t buf = 0;
+        if (!buf) buf = ::mem::AllocSystem(32);
+        std::memset(::kernel::HostPtr(buf), 0, 32);
+        std::memcpy(::kernel::HostPtr(buf), name.data(), std::min<size_t>(name.size(), 8));
+        const uint32_t args = ::kernel::R32(ctx.esp + 4);
+        LOGI("defjam: User ID digitado no PC: %s (no lugar de %s)", name.c_str(),
+             ::kernel::ReadCString(::kernel::R32(args), 32).c_str());
+        ::kernel::W32(args, buf);
+    }
+    __imp__sub_00052820(ctx, base);
+}

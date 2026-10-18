@@ -17,13 +17,18 @@ switch ($Acao) {
         Remove-Item $cmd -ErrorAction SilentlyContinue
         $env:DEFJAM_WINDOW_MONITOR = '1'
         $env:DEFJAM_PAD_CMD = $cmd
+        $env:DEFJAM_HDD = 'hdd-teste'  # saves dos testes separados dos do jogador
         $p = Start-Process -FilePath (Join-Path $exeDir 'DefJamFFNY.exe') -WorkingDirectory $exeDir -PassThru
-        Remove-Item Env:DEFJAM_WINDOW_MONITOR, Env:DEFJAM_PAD_CMD
+        Remove-Item Env:DEFJAM_WINDOW_MONITOR, Env:DEFJAM_PAD_CMD, Env:DEFJAM_HDD
         "pid=$($p.Id)"
     }
     'press' {
         # acrescenta (o jogo apaga o arquivo depois de ler)
-        Add-Content -Path $cmd -Value ($Resto -join "`n") -Encoding ascii
+        # o jogo pode estar lendo/apagando o arquivo no mesmo instante: tenta de novo
+        for ($t = 0; $t -lt 20; $t++) {
+            try { Add-Content -Path $cmd -Value ($Resto -join "`n") -Encoding ascii -ErrorAction Stop; break }
+            catch { Start-Sleep -Milliseconds 50 }
+        }
         "ok"
     }
     'shot' {

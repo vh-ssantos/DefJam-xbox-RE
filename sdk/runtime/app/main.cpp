@@ -263,6 +263,8 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {
     input::Init();
     if (app::kGame.window) app::kGame.window(app::g_hwnd);
     std::wstring hdd = app::Instance() > 1 ? L"hdd" + std::to_wstring(app::Instance()) : L"hdd";
+    // (DefJam) DEFJAM_HDD=<pasta>: outro HD (saves) ao lado do exe, para testes não mexerem nos saves do jogador
+    if (const wchar_t* h = _wgetenv(L"DEFJAM_HDD")) hdd = h;
     if (app::Instance())
         SetWindowTextW(app::g_hwnd, (std::wstring(app::kGame.title) + L" [" + std::to_wstring(app::Instance()) + L"]").c_str());
     if (!kernel::Boot(std::move(game.xbe), IMAGE_XBE, game.dir.string(), (app::ExeDir() / hdd).string())) {

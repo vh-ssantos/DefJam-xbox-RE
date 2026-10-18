@@ -129,3 +129,15 @@ x86 -> C++, D3D8 -> D3D12, DirectSound -> XAudio2. O port de PS2 (E:\Projetos\De
   (0xBF2B0) e executados na thread dele. Travar ali (esperar) dava deadlock: 10/10 congelados no menu. Desistir se
   ocupado é o que o próprio jogo faz. Resultado: 12/12 idas à luta limpas.
 - tools/estresse_luta.ps1 -Vezes N: repete a ida à luta e diz se travou ou congelou.
+
+## Cheats, nome pelo teclado do PC, saves dos testes (2026-10-18)
+- Cheats (menu F10, "Cheat (A aplica)"): o objeto da tela Extras->Cheats nasce em 0x49F40 (thiscall; guardamos o
+  this). O comando de script SubmitCheatCode é 0x49D00(this, args, n), args[0] = código; devolve "TYPE=2&VALUE=100"
+  (pontos) ou texto de erro. ApplyPendingCheat (hooks.cpp) chama na thread do jogo, a partir do PadHook, com
+  kernel::CurrentContext(). Testado: GETSTUFF -> +100 pontos em Unlock Rewards. Códigos: lista pública (21).
+- Nome do User ID: comando de script CreateNewUser = 0x52820(args, n), args[0] = nome (SetNewUserID 0x52D70 NÃO é
+  chamado na criação). O nome digitado no menu F10 entra no lugar. A conferência de nome repetido é feita pelo
+  Flash com o nome da tela (digite na tela uma letra que não exista). DEFJAM_TEST_NAME simula a digitação.
+  Para achar comandos de script: "push handler; push nome" perto do nome; trace por contagem (DEFJAM_TRACE_COUNT=1 +
+  [xbe] trace com a faixa 0x40000-0x60000) mostra com * as funções novas na ação.
+- DEFJAM_HDD=<pasta> (SDK app/main.cpp): o live.ps1 usa hdd-teste, os testes não mexem nos saves do jogador.

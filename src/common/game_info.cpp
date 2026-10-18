@@ -174,6 +174,7 @@ void PadHook(int port, input::Pad& pad) {
     PadScript(port, pad);
     if (port != 0) return;
     defjam::WaitWhileUnfocused();
+    defjam::ApplyPendingCheat();
     if (defjam::SkipIntroPress()) pad.buttons |= 0x10;  // START
     static bool combo = false, hold_off = false;
     const bool both = (pad.buttons & 0x30) == 0x30;  // START e BACK

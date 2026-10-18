@@ -1,6 +1,7 @@
 // Menu de opções do port (F10 ou BACK+START no controle), desenhado por cima do jogo com ImGui.
 #pragma once
 #include <cstdint>
+#include <string>
 
 namespace input {
 struct Pad;
@@ -16,6 +17,12 @@ bool MenuOpen();
 // um vídeo da abertura começou: com g_skip_intros, PadHook aperta START logo depois
 void IntroMovieStarted();
 bool SkipIntroPress();  // START automático agora?
+// cheats do jogo: o menu enfileira um código; a thread do jogo o aplica (game/hooks.cpp) e devolve a resposta
+bool TakeCheatRequest(std::string& code);
+void CheatResult(const std::string& text);
+void ApplyPendingCheat();
+// nome digitado no teclado do PC para o próximo User ID (A-Z, 0-9, até 8): a thread do jogo o pega uma vez
+bool TakeTypedName(std::string& name);
 // thread do jogo: com g_pause_unfocused, espera aqui (som parado) enquanto a janela está em segundo plano
 void WaitWhileUnfocused();
 // a janela do jogo (GameInfo::window), para esconder o cursor do mouse parado
