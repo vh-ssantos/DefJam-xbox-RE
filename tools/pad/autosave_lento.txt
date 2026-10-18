@@ -1,0 +1,6 @@
+# versao com folga para quando o log detalhado esta ligado
+115 START 0.4
+121 START 0.4
+127 A 0.4
+133 A 0.4
+139 A 0.4

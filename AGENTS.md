@@ -10,7 +10,17 @@ x86 -> C++, D3D8 -> D3D12, DirectSound -> XAudio2. O port de PS2 (E:\Projetos\De
 - Compilar: `compilar.cmd` (vcvars + LLVM portátil em E:\Tools\llvm + CMake/Ninja do VS). Log em `out\compilar.log`.
 
 ## Estado (2026-10-17)
-- Boot -> vídeos EA/THX/abertura com som -> título -> menu principal -> Story -> criar User ID. 60 fps.
+- Boot -> vídeos EA/THX/abertura com som -> título -> menu principal -> Story -> criar User ID -> criação do
+  lutador (Vitals). 60 fps. Perfil salvo no disco virtual (out/build/release/hdd).
+- Autosave YES travou em alguns testes (botões rápidos ou o controle do usuário junto); com calma funcionou. Pendente.
+
+## Diagnóstico
+- DEFJAM_LOG=1: mensagens informativas no Release (deixa o jogo ~10 s mais lento até o título: ajuste os scripts).
+- DEFJAM_KTRACE=1: cada chamada ao kernel (3 primeiras por local de chamada, depois 1 a cada 1000).
+- DEFJAM_CAPTURE_AT=<s>,... + XBE_CAPTURE_DIR=<pasta>: captura completa do quadro (cada desenho, texturas, shaders,
+  frame.txt com formato de textura e estados). Foi assim que apareceu o P8 sem paleta.
+- tools/dump_process.ps1 + tools/dump_threads.js: onde cada thread está num processo travado.
+- O controle real soma botões ao script (XInput lê sem foco): ninguém mexe no controle durante testes.
 
 ## Como achar funções do XDK que as assinaturas não pegaram
 - Crash: o log mostra o RIP do host; `node tools/dump_symbolize.js <dmp> DefJamFFNY.exe <rip>` dá `sub_XXXXXXXX`
@@ -33,3 +43,4 @@ x86 -> C++, D3D8 -> D3D12, DirectSound -> XAudio2. O port de PS2 (E:\Projetos\De
 | 0x2593A7 / 0x2593C3 | provável IDirectSoundBuffer Pause / PauseEx | ainda não tratados |
 | 0x259347 | provável IDirectSoundBuffer PlayEx | ainda não tratado |
 | 0x27CE74 | XPP_GamepadType | push antes de XInputOpen |
+| 0x216140 | D3DDevice_SetPalette | grava device+0xF98+estágio*4; sem ele textos P8 (0x0B) ficavam com fundo preto |

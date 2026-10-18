@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <mutex>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -107,6 +108,25 @@ void x86_resume(X86Context& ctx, uint8_t* base, const X86Resume& r) {
 
 void x86_kernel(X86Context& ctx, uint8_t* base, uint32_t ordinal) {
     if (ordinal < 400 && g_exports[ordinal].fn) {
+        // (DefJam) DEFJAM_KTRACE=1: registra as 3 primeiras chamadas de cada par (função do kernel, endereço de retorno) e depois 1 a cada 1000
+        static const bool ktrace = std::getenv("DEFJAM_KTRACE") != nullptr;
+        if (ktrace) {
+            static std::mutex m;
+            static std::unordered_map<uint64_t, int> seen;
+            const uint32_t ret = kernel::R32(ctx.esp);
+            bool log;
+            {
+                std::lock_guard<std::mutex> lock(m);
+                const int n = ++seen[uint64_t(ordinal) << 32 | ret];
+                log = n <= 3 || n % 1000 == 0;
+            }
+            if (log) {
+                const uint32_t a0 = kernel::R32(ctx.esp + 4), a1 = kernel::R32(ctx.esp + 8);
+                g_exports[ordinal].fn(ctx, base);
+                LOGI("k %s from %08X (%08X, %08X) -> %08X", kernel::ExportName(ordinal), ret, a0, a1, ctx.eax);
+                return;
+            }
+        }
         g_exports[ordinal].fn(ctx, base);
         return;
     }

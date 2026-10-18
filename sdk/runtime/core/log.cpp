@@ -52,7 +52,9 @@ void Init(const std::string& dir, const std::string& prefix, bool append) {
 const std::string& Path() { return g_path; }
 
 void Write(Level lv, const char* fmt, ...) {
-    if (!kVerbose && lv < Level::Error) return;
+    // (DefJam) DEFJAM_LOG=1 liga as mensagens informativas também no Release
+    static const bool verbose = kVerbose || std::getenv("DEFJAM_LOG") != nullptr;
+    if (!verbose && lv < Level::Error) return;
     char msg[4096];
     va_list ap;
     va_start(ap, fmt);

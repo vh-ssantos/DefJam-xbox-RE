@@ -15,6 +15,7 @@
 
 #include "app/app.h"
 #include "core/input.h"
+#include "gpu/backend.h"
 
 namespace {
 
@@ -89,11 +90,30 @@ void ApplyButtons(const std::string& s, input::Pad& p) {
     }
 }
 
+// DEFJAM_CAPTURE_AT=<s>[,<s>...] (testes): captura de quadro do runtime (a do F3, em XBE_CAPTURE_DIR) nesses segundos.
+std::vector<double> LoadCaptureTimes() {
+    std::vector<double> v;
+    if (const char* e = std::getenv("DEFJAM_CAPTURE_AT"))
+        for (const char* p = e; *p;) {
+            char* end = nullptr;
+            const double s = std::strtod(p, &end);
+            if (end == p) break;
+            v.push_back(s);
+            p = *end == ',' ? end + 1 : end;
+        }
+    return v;
+}
+
 void PadScript(int port, input::Pad& pad) {
     static const std::vector<ScriptPress> script = LoadPadScript();
-    if (port != 0 || script.empty()) return;
+    static std::vector<double> captures = LoadCaptureTimes();
+    if (port != 0 || (script.empty() && captures.empty())) return;
     static const auto start = std::chrono::steady_clock::now();
     const double t = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+    if (!captures.empty() && t >= captures.front()) {
+        captures.erase(captures.begin());
+        gpu::g_capture = true;
+    }
     pad.connected = true;
     for (const ScriptPress& s : script)
         if (t >= s.at && t <= s.at + s.len) ApplyButtons(s.buttons, pad);
