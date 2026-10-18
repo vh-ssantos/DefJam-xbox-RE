@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <mutex>
+#include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -121,9 +122,10 @@ void x86_kernel(X86Context& ctx, uint8_t* base, uint32_t ordinal) {
                 log = n <= 3 || n % 1000 == 0;
             }
             if (log) {
-                const uint32_t a0 = kernel::R32(ctx.esp + 4), a1 = kernel::R32(ctx.esp + 8);
+                const uint32_t a0 = kernel::R32(ctx.esp + 4), a1 = kernel::R32(ctx.esp + 8), a2 = kernel::R32(ctx.esp + 12),
+                               a3 = kernel::R32(ctx.esp + 16);
                 g_exports[ordinal].fn(ctx, base);
-                LOGI("k %s from %08X (%08X, %08X) -> %08X", kernel::ExportName(ordinal), ret, a0, a1, ctx.eax);
+                LOGI("k %s from %08X (%08X, %08X, %08X, %08X) -> %08X", kernel::ExportName(ordinal), ret, a0, a1, a2, a3, ctx.eax);
                 return;
             }
         }
@@ -212,6 +214,31 @@ void x86_trap(X86Context& ctx, uint32_t va, const char* what) {
 
 uint32_t x86_trace(X86Context& ctx, uint32_t va, uint32_t ret) {
     using kernel::R32;
+    // (DefJam) DEFJAM_TRACE_COUNT=1: em vez de uma linha por chamada, conta e resume a cada 5 s (funções novas no
+    // período vêm marcadas com *), para traçar regiões inteiras sem inundar o log
+    static const bool count_only = std::getenv("DEFJAM_TRACE_COUNT") != nullptr;
+    if (count_only) {
+        if (ret) return ret;
+        static std::mutex m;
+        static std::unordered_map<uint32_t, uint64_t> calls, total;
+        static auto last = std::chrono::steady_clock::now();
+        std::lock_guard<std::mutex> lock(m);
+        ++calls[va];
+        const auto now = std::chrono::steady_clock::now();
+        if (now - last >= std::chrono::seconds(5)) {
+            last = now;
+            std::string line;
+            for (auto& [f, n] : calls) {
+                char b[40];
+                std::snprintf(b, sizeof b, " %s%X:%llu", total[f] ? "" : "*", f, (unsigned long long)n);
+                line += b;
+                total[f] += n;
+            }
+            calls.clear();
+            LOGI("trace5s%s", line.c_str());
+        }
+        return R32(ctx.esp);
+    }
     if (!ret) {
         ret = R32(ctx.esp);
         LOGI("trace %08X from %08X (%08X, %08X, %08X, %08X) ecx %08X", va, ret, R32(ctx.esp + 4), R32(ctx.esp + 8),

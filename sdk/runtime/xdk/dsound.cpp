@@ -1,4 +1,8 @@
 // DirectSound (XDK 5849) on a host software mixer. Buffers and streams are read from guest memory as they play.
+#include <mutex>
+#include <unordered_map>
+#include <string>
+#include <cstdlib>
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -263,8 +267,38 @@ void Render(float* out, uint32_t frames) {
         Levels(v, g);
         uint32_t base = v.data + v.play_start;
         double step = double(v.freq ? v.freq : v.rate) / audio::kRate;
+        // (DefJam) mais de 2 canais (o mixer da EA entrega 5.1 num buffer só): Levels só cobre os canais 0 e 1, então
+        // central, LFE e traseiros eram descartados (sumiam falas e golpes). Downmix ITU para estéreo.
+        const bool wide = v.channels > 2;
+        const float wide_gain = std::max(g[0][0], g[1][1]);
+        auto extra = [&](uint32_t data, uint32_t fr, float& l, float& r) {
+            const float c = Sample(v, data, fr, 2);
+            const float lfe = v.channels > 3 ? Sample(v, data, fr, 3) : 0.0f;
+            const float bl = v.channels > 4 ? Sample(v, data, fr, 4) : 0.0f;
+            const float br = v.channels > 5 ? Sample(v, data, fr, 5) : 0.0f;
+            l = (0.707f * c + 0.35f * lfe + 0.707f * bl) * wide_gain;
+            r = (0.707f * c + 0.35f * lfe + 0.707f * br) * wide_gain;
+            // DEFJAM_DSTRACE: energia de cada canal a cada ~5 s, para ver o que o jogo põe em cada um
+            static const bool trace = std::getenv("DEFJAM_DSTRACE") != nullptr;
+            if (trace) {
+                static double sum[6];
+                static uint32_t count = 0;
+                for (uint32_t k = 0; k < 6 && k < v.channels; k++) {
+                    const float s = Sample(v, data, fr, int(k));
+                    sum[k] += double(s) * s;
+                }
+                if (++count >= audio::kRate * 5) {
+                    LOGI("ds canais rms FL %.4f FR %.4f C %.4f LFE %.4f BL %.4f BR %.4f", std::sqrt(sum[0] / count),
+                         std::sqrt(sum[1] / count), std::sqrt(sum[2] / count), std::sqrt(sum[3] / count),
+                         std::sqrt(sum[4] / count), std::sqrt(sum[5] / count));
+                    count = 0;
+                    for (double& x : sum) x = 0;
+                }
+            }
+        };
         for (uint32_t i = 0; i < frames; i++) {
             uint32_t f = uint32_t(v.pos);
+            float el = 0, er = 0;  // os canais além do 0 e 1, já em estéreo
             float a, b, a1, b1;  // this frame and the next, interpolated between
             if (v.stream) {
                 while (!v.packets.empty() && f >= FramesOf(v, v.packets.front().size)) {
@@ -283,6 +317,7 @@ void Render(float* out, uint32_t frames) {
                 Packet& pk = v.packets.front();
                 a = Sample(v, pk.data, f, 0);
                 b = Sample(v, pk.data, f, 1);
+                if (wide) extra(pk.data, f, el, er);
                 if (f + 1 < FramesOf(v, pk.size)) {
                     a1 = Sample(v, pk.data, f + 1, 0);
                     b1 = Sample(v, pk.data, f + 1, 1);
@@ -308,6 +343,7 @@ void Render(float* out, uint32_t frames) {
                 if (!v.data) break;
                 a = Sample(v, base, f, 0);
                 b = Sample(v, base, f, 1);
+                if (wide) extra(base, f, el, er);
                 uint32_t next = f + 1 < end ? f + 1 : v.looping ? start : f;
                 a1 = Sample(v, base, next, 0);
                 b1 = Sample(v, base, next, 1);
@@ -315,8 +351,8 @@ void Render(float* out, uint32_t frames) {
             float t = float(v.pos - f);
             a += (a1 - a) * t;
             b += (b1 - b) * t;
-            out[i * 2] += a * g[0][0] + b * g[1][0];
-            out[i * 2 + 1] += a * g[0][1] + b * g[1][1];
+            out[i * 2] += a * g[0][0] + b * g[1][0] + el;
+            out[i * 2 + 1] += a * g[0][1] + b * g[1][1] + er;
             v.pos += step;
         }
     }
@@ -405,6 +441,8 @@ uint32_t NewBuffer(uint32_t desc, uint32_t out) {
         v.data = v.owned = mem::AllocContiguous(bytes, 0, 0xFFFFFFFF, 4);
         v.bytes = v.play_len = v.loop_len = bytes;
     }
+    if (std::getenv("DEFJAM_DSTRACE"))
+        LOG_FIRST(200, "ds NewBuffer %08X flags %X bytes %u tag %X ch %u rate %u", obj, flags, bytes, v.tag, v.channels, v.rate);
     W32(out, obj);
     return 0;
 }
@@ -589,9 +627,26 @@ HLE_STDCALL(IDirectSound_GetOutputLevels, 3) {
 HLE_STDCALL(DirectSoundCreateBuffer, 2) { return NewBuffer(a[0], a[1]); }
 HLE_STDCALL(IDirectSound_CreateSoundBuffer, 4) { return NewBuffer(a[1], a[2]); }
 
+// (DefJam) DEFJAM_DSTRACE=1: registra as chamadas de som (as 6 primeiras de cada função, depois 1 a cada 500)
+template <class A>
+static void DsTrace(const char* name, const A& a) {
+    static const bool on = std::getenv("DEFJAM_DSTRACE") != nullptr;
+    if (!on) return;
+    static std::mutex m;
+    static std::unordered_map<std::string, int> seen;
+    int n;
+    {
+        std::lock_guard<std::mutex> lock(m);
+        n = ++seen[name];
+    }
+    if (n <= 6 || n % 500 == 0)
+        LOGI("ds %s #%d (%08X, %08X, %08X, %08X)", name, n, a[0], a[1], a[2], a[3]);
+}
+
 #define BUFFER(name, nargs)                                 \
     static uint32_t buf_##name(Voice& v, const Args& a);    \
     HLE_STDCALL(IDirectSoundBuffer_##name, nargs) {         \
+        DsTrace("buf_" #name, a);                           \
         std::lock_guard<std::recursive_mutex> lock(g_lock); \
         Voice* v = Find(a[0]);                              \
         return v ? buf_##name(*v, a) : 0x80004005u;         \
@@ -767,6 +822,7 @@ HLE_STDCALL(DirectSoundCreateStream, 2) {
 #define STREAM(name, nargs)                                     \
     static uint32_t str_##name(Voice& v, const Args& a);        \
     HLE_STDCALL(CDirectSoundStream_##name, nargs) {             \
+        DsTrace("str_" #name, a);                               \
         uint32_t r;                                             \
         std::vector<Done> flushed;                              \
         {                                                       \
