@@ -117,3 +117,15 @@ x86 -> C++, D3D8 -> D3D12, DirectSound -> XAudio2. O port de PS2 (E:\Projetos\De
 4. Instalador (setup.exe + ícone): decidir exe pronto x compilar a partir da ISO do usuário.
 5. **Depois do jogo 100%:** texturas HD. Sistema de troca de texturas por hash (dump + pasta de substitutas no
    backend d3d12, que já calcula hash das texturas) e um pacote gerado com upscale por IA, mantido fora do git.
+
+## Corrida entre threads no armazenamento (corrigida 2026-10-18)
+- Sintoma: crash intermitente no início da luta (~1 em cada 4-11 idas), guest 0x1328C6 lendo [[0x3AD928]+0x38] com o
+  global já zerado.
+- Causa: o subsistema de dispositivos de save (0x130F00-0x133D00) usa um "trava caseira" não atômica ([0x3AD938] =
+  ocupado, [0x3AD928] = dispositivo atual, zerados na saída). No Xbox de 1 núcleo as threads não se cruzavam; no
+  runtime cada guest thread roda em paralelo de verdade (prioridades ignoradas).
+- Correção (src/game/hooks.cpp): trava recursiva única nas 27 entradas chamadas de fora (DEFJAM_STORAGE_SERIAL) e
+  try_lock em 0x133C00, que é chamada pelos callbacks 0x133CB0/0x133CC0 guardados pelo sistema de streaming
+  (0xBF2B0) e executados na thread dele. Travar ali (esperar) dava deadlock: 10/10 congelados no menu. Desistir se
+  ocupado é o que o próprio jogo faz. Resultado: 12/12 idas à luta limpas.
+- tools/estresse_luta.ps1 -Vezes N: repete a ida à luta e diz se travou ou congelou.
