@@ -15,9 +15,11 @@ x86 -> C++, D3D8 -> D3D12, DirectSound -> XAudio2. O port de PS2 (E:\Projetos\De
 - História: perfil -> cutscene de abertura inteira -> Fighter Decision -> Sketch Artist (voz) -> cutscene do D-Mob ->
   Choose Style (vídeo na tela de projeção) -> cena da academia -> 1ª luta (tutorial x House): socos, chutes e golpes
   fortes acertam e o tutorial avança.
-- **Travamentos intermitentes (a investigar):** às vezes o YES do autosave não anda, e uma vez a 1ª cutscene da
-  história congelou num close (o laço principal continuava apresentando quadros). Na repetição os dois passaram.
-  Suspeita: corrida entre threads do host (ex.: timer/vblank chamando código do jogo em paralelo) ou toques perdidos.
+- **Travamentos intermitentes:** (1) o YES do autosave "não andava": com toques de 0.4 s passou 5/5 (antes ~2 falhas
+  em 5 com 0.2 s) -> eram toques perdidos. (2) Uma vez a 1ª cutscene da história congelou num close (o laço
+  principal continuava apresentando). Corrigido um suspeito: o SetTimerCallback do host recusava tempo no passado e o
+  relógio periódico do jogo (0xD7DE0 arma anterior+período) morreria se a thread atrasasse um período; agora dispara já.
+  Log "defjam: timer pedido ... no passado" (DEFJAM_LOG=1) mostra se isso acontece. Ainda não reproduzido de novo.
 - Toques de 0.2 s às vezes se perdem (telas com vídeo/diálogo); o padrão do live.ps1 agora é 0.4 s.
 
 ## Diagnóstico

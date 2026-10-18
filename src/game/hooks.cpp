@@ -173,13 +173,19 @@ X86_FUNC(sub_00216410) {
             started = true;
             ::kernel::StartHostThread("timer callback", TimerThread);
         }
-        if (callback && time <= x86_rdtsc() + 40) {
-            result = kD3dErrTimeInPast;
-        } else {
-            g_timerTime = time;
-            g_timerCallback = callback;
-            g_timerContext = context;
+        // O original recusa um tempo já passado (D3DERR_TIMEINPAST). O jogo arma o próximo em "anterior + período";
+        // num PC uma thread pode atrasar mais de um período e aí a recusa matava o relógio para sempre (cutscene e
+        // diálogo congelavam com a tela ainda sendo apresentada). Um tempo passado dispara já; o jogo alcança a grade.
+        (void)kD3dErrTimeInPast;
+        const uint64_t now = x86_rdtsc();
+        if (callback && time <= now + 40) {
+            static int late = 0;
+            if (++late <= 20 || late % 100 == 0)
+                LOGI("defjam: timer pedido %.2f ms no passado (%d vezes)", double(now - time) / 733333.0, late);
         }
+        g_timerTime = time;
+        g_timerCallback = callback;
+        g_timerContext = context;
     }
     g_timerCv.notify_all();
     ::kernel::Return(ctx, result, 4);
