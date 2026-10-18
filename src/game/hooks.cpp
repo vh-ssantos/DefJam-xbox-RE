@@ -203,3 +203,45 @@ X86_FUNC(sub_0001E460) {
     if (name == "movies/eagames" || name == "movies/thx" || name == "movies/intro") defjam::IntroMovieStarted();
     __imp__sub_0001E460(ctx, base);
 }
+
+// Subsistema de dispositivos de armazenamento (0x130F00-0x133D00: HD e memory units, usado pela camada de memory card
+// do jogo em 0x1CB00-0x1D700 e pelo módulo de saves em 0x134000-0x135800). Guarda o dispositivo "atual" em globais
+// (0x3AD928, 0x3AD934, 0x3AD938) e as zera ao sair. No Xbox (um núcleo) duas threads quase nunca se cruzavam aí; no PC
+// rodam em paralelo de verdade e uma lia [0x3AD928] já zerado pela outra (crash em 0x1328C6, início de luta com
+// autosave). Uma trava recursiva única em todas as entradas devolve o "um por vez".
+namespace {
+std::recursive_mutex g_storage_lock;
+}  // namespace
+#define DEFJAM_STORAGE_SERIAL(addr)                                  \
+    X86_EXTERN_FUNC(__imp__sub_##addr);                              \
+    X86_FUNC(sub_##addr) {                                           \
+        std::lock_guard<std::recursive_mutex> lock(g_storage_lock);  \
+        __imp__sub_##addr(ctx, base);                                \
+    }
+DEFJAM_STORAGE_SERIAL(00130F40)
+DEFJAM_STORAGE_SERIAL(00131060)
+DEFJAM_STORAGE_SERIAL(00131080)
+DEFJAM_STORAGE_SERIAL(00131310)
+DEFJAM_STORAGE_SERIAL(00131620)
+DEFJAM_STORAGE_SERIAL(00131760)
+DEFJAM_STORAGE_SERIAL(00131780)
+DEFJAM_STORAGE_SERIAL(001317C0)
+DEFJAM_STORAGE_SERIAL(00131C00)
+DEFJAM_STORAGE_SERIAL(00131D20)
+DEFJAM_STORAGE_SERIAL(00131E90)
+DEFJAM_STORAGE_SERIAL(00132060)
+DEFJAM_STORAGE_SERIAL(001320A0)
+DEFJAM_STORAGE_SERIAL(00132260)
+DEFJAM_STORAGE_SERIAL(00132440)
+DEFJAM_STORAGE_SERIAL(00132670)
+DEFJAM_STORAGE_SERIAL(00132770)
+DEFJAM_STORAGE_SERIAL(001329A0)
+DEFJAM_STORAGE_SERIAL(00132BA0)
+DEFJAM_STORAGE_SERIAL(00132C40)
+DEFJAM_STORAGE_SERIAL(00132C70)
+DEFJAM_STORAGE_SERIAL(00132CA0)
+DEFJAM_STORAGE_SERIAL(00133240)
+DEFJAM_STORAGE_SERIAL(00133570)
+DEFJAM_STORAGE_SERIAL(00133580)
+DEFJAM_STORAGE_SERIAL(001335B0)
+DEFJAM_STORAGE_SERIAL(00133CD0)
