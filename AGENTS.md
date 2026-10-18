@@ -35,6 +35,12 @@ x86 -> C++, D3D8 -> D3D12, DirectSound -> XAudio2. O port de PS2 (E:\Projetos\De
 - Ícone: tools/make_icon.js tira o ícone oficial do dashboard ($XTIMAGE, XPR0 DXT1 128x128) do default.xbe e o
   CMake embute num .rc gerado na pasta de build (nada do jogo vai para o git).
 
+## Pular abertura e pausar sem foco (src/common/menu.cpp)
+- skip_intros: hook em 0x1E460 (define o nome do vídeo, this+841); para movies/eagames, movies/thx e movies/intro o
+  PadHook aperta START 0.5 s depois. Título em ~18 s. settings-teste.toml usa skip_intros = false (roteiros).
+- pause_on_focus_loss: PadHook (thread do jogo) espera enquanto a janela não tem foco; audio::g_paused (novo, SDK)
+  faz o mixer entregar silêncio sem avançar as vozes. Desligado quando DEFJAM_WINDOW_MONITOR existe (testes).
+
 ## Oclusão de ambiente (src/common/occlusion.cpp)
 - gpu::Extension do runtime (sem mexer no backend, só um gancho novo BeforeClear em ext.h/d3d12.cpp). Shaders
   SSAO/GTAO do BLACK, passes via Context::Pass (8 constantes), cena lida por Feedback e multiplicada.

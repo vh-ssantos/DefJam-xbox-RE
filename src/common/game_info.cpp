@@ -173,6 +173,8 @@ void PadScript(int port, input::Pad& pad) {
 void PadHook(int port, input::Pad& pad) {
     PadScript(port, pad);
     if (port != 0) return;
+    defjam::WaitWhileUnfocused();
+    if (defjam::SkipIntroPress()) pad.buttons |= 0x10;  // START
     static bool combo = false, hold_off = false;
     const bool both = (pad.buttons & 0x30) == 0x30;  // START e BACK
     if (both && !combo) defjam::ToggleMenu();
@@ -204,7 +206,9 @@ const app::GameInfo app::kGame = {
     .splash = L"splash",
     .missing = L"Coloque o jogo na pasta assets: a imagem do disco (.iso) ou o default.xbe com as pastas ao lado.",
     .images = {{"default.xbe", "DefJamFFNY"}},
-    .options = {{"ambient_occlusion", nullptr, &defjam::g_ao_mode}},
+    .options = {{"ambient_occlusion", nullptr, &defjam::g_ao_mode},
+                {"skip_intros", &defjam::g_skip_intros, nullptr},
+                {"pause_on_focus_loss", &defjam::g_pause_unfocused, nullptr}},
     .load = nullptr,
     .save = nullptr,
     .init = defjam::InstallOcclusion,

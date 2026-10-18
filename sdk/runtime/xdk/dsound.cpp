@@ -260,6 +260,7 @@ void Deactivate(Voice& v) {
 
 void Render(float* out, uint32_t frames) {
     std::memset(out, 0, frames * 2 * sizeof(float));
+    if (audio::g_paused) return;  // (DefJam) pausado: silêncio, as vozes ficam onde estão
     std::lock_guard<std::recursive_mutex> lock(g_lock);
     for (auto& [obj, v] : g_voices) {
         if (v.paused || v.sync || (!v.stream && !v.playing)) continue;

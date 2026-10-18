@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <cstdlib>
 #include <cstdio>
 #include <mutex>
 #include <string>
@@ -24,9 +25,13 @@
 #include "app/app.h"
 #include "common/menu.h"
 #include "common/occlusion.h"
+#include "audio/audio.h"
 #include "core/input.h"
 
 namespace defjam {
+
+bool g_skip_intros = true;
+bool g_pause_unfocused = true;
 
 namespace {
 
@@ -84,7 +89,7 @@ int IndexOf(const std::vector<T>& v, const T& x) {
 }
 int Wrap(int i, int n) { return (i % n + n) % n; }
 
-constexpr int kRows = 8;  // 7 opções + Fechar
+constexpr int kRows = 10;  // 9 opções + Fechar
 
 // desenha uma linha; selecionada se index == g_row. Clique nas setas também muda. Devolve -1, 0 ou +1.
 int Row(int index, const char* label, const std::string& value, int nav_step) {
@@ -191,6 +196,14 @@ void DrawPanel() {
         save = true;
     }
     if (Row(6, "Mostrar FPS", g_show_fps ? "Sim" : "Nao", step)) g_show_fps = !g_show_fps;
+    if (Row(7, "Pular videos de abertura", g_skip_intros ? "Sim" : "Nao", step)) {
+        g_skip_intros = !g_skip_intros;
+        save = true;
+    }
+    if (Row(8, "Pausar sem foco", g_pause_unfocused ? "Sim" : "Nao", step)) {
+        g_pause_unfocused = !g_pause_unfocused;
+        save = true;
+    }
 
     ImGui::Separator();
     // Fechar: selecionado vira vermelho; A/Enter ou clique fecha
@@ -208,6 +221,42 @@ void DrawPanel() {
 }  // namespace
 
 bool MenuOpen() { return g_open.load(std::memory_order_relaxed); }
+
+namespace {
+std::atomic<int64_t> g_skip_at{0};  // ms do relógio estável: quando apertar o START automático (0 = nenhum)
+int64_t NowMs() {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch())
+        .count();
+}
+}  // namespace
+
+void IntroMovieStarted() {
+    if (g_skip_intros) g_skip_at = NowMs() + 500;
+}
+
+bool SkipIntroPress() {
+    const int64_t at = g_skip_at;
+    if (!at) return false;
+    const int64_t now = NowMs();
+    if (now < at) return false;
+    if (now > at + 150) {
+        g_skip_at = 0;
+        return false;
+    }
+    return true;
+}
+
+void WaitWhileUnfocused() {
+    // os testes automáticos rodam em segundo plano de propósito
+    static const bool tests = std::getenv("DEFJAM_WINDOW_MONITOR") != nullptr;
+    auto unfocused = [] {
+        return g_hwnd && IsWindowVisible(g_hwnd) && (GetForegroundWindow() != g_hwnd || IsIconic(g_hwnd));
+    };
+    if (tests || !g_pause_unfocused || !unfocused()) return;
+    audio::g_paused = true;
+    while (g_pause_unfocused && unfocused()) Sleep(20);
+    audio::g_paused = false;
+}
 
 void ToggleMenu() {
     const bool open = !MenuOpen();

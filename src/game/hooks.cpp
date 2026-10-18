@@ -19,6 +19,9 @@
 #include "cpu/x86_ops.h"
 #include "kernel/memory.h"
 #include "xdk/hle.h"
+#include "common/menu.h"
+
+#include <string>
 
 namespace {
 constexpr uint32_t kDevice = SYM(D3D_Device);
@@ -189,4 +192,14 @@ X86_FUNC(sub_00216410) {
     }
     g_timerCv.notify_all();
     ::kernel::Return(ctx, result, 4);
+}
+
+// Nome do próximo vídeo (this = ecx, nome em [esp+4]): copia para this+841. Com "Pular vídeos de abertura" ligado, os
+// três da abertura (EA, THX e o filme de introdução) marcam um START automático meio segundo depois, que o jogo trata
+// como o jogador pulando o vídeo (src/common/game_info.cpp, PadHook).
+X86_EXTERN_FUNC(__imp__sub_0001E460);
+X86_FUNC(sub_0001E460) {
+    const std::string name = ::kernel::ReadCString(::kernel::R32(ctx.esp + 4), 64);
+    if (name == "movies/eagames" || name == "movies/thx" || name == "movies/intro") defjam::IntroMovieStarted();
+    __imp__sub_0001E460(ctx, base);
 }

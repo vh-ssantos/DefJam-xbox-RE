@@ -8,7 +8,16 @@ struct Pad;
 
 namespace defjam {
 
+// opções do port salvas no settings.toml (skip_intros, pause_on_focus_loss)
+extern bool g_skip_intros;
+extern bool g_pause_unfocused;
+
 bool MenuOpen();
+// um vídeo da abertura começou: com g_skip_intros, PadHook aperta START logo depois
+void IntroMovieStarted();
+bool SkipIntroPress();  // START automático agora?
+// thread do jogo: com g_pause_unfocused, espera aqui (som parado) enquanto a janela está em segundo plano
+void WaitWhileUnfocused();
 // a janela do jogo (GameInfo::window), para esconder o cursor do mouse parado
 void SetWindow(void* hwnd);
 void ToggleMenu();
