@@ -19,6 +19,7 @@
 #include "cpu/x86_ops.h"
 #include "kernel/memory.h"
 #include "xdk/hle.h"
+#include "common/discord.h"
 #include "common/menu.h"
 
 #include <string>
@@ -319,3 +320,16 @@ X86_FUNC(sub_00052820) {
     }
     __imp__sub_00052820(ctx, base);
 }
+
+// Comandos de script de troca de modo (handlers registrados com push handler; push nome): avisam a presença no
+// Discord do que o jogador está fazendo e seguem para o original.
+#define DEFJAM_PRESENCE(addr, text)          \
+    X86_EXTERN_FUNC(__imp__sub_##addr);      \
+    X86_FUNC(sub_##addr) {                   \
+        defjam::SetDiscordDetails(text);     \
+        __imp__sub_##addr(ctx, base);        \
+    }
+DEFJAM_PRESENCE(00046610, "No menu principal")  // StartMainMenu
+DEFJAM_PRESENCE(00046410, "Modo Battle")        // StartBattleMode
+DEFJAM_PRESENCE(00046450, "Modo historia")      // StartStoryMode
+DEFJAM_PRESENCE(00046E40, "Lutando")            // StartGame (a luta começa)

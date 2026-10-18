@@ -7,6 +7,8 @@
 #define NOMINMAX
 #endif
 #include <windows.h>
+#include <commdlg.h>
+#include <shellapi.h>
 
 #include <algorithm>
 #include <cwctype>
@@ -57,6 +59,37 @@ bool ReadHostFile(const fs::path& path, std::vector<uint8_t>& out) {
     if (!f) return false;
     out.assign(std::istreambuf_iterator<char>(f), {});
     return true;
+}
+
+// (DefJam) sem o jogo: oferece escolher a imagem do disco (.iso) e a copia para assets ao lado do exe, com a janela de
+// progresso do próprio Windows. Devolve true se copiou (FindGame procura de novo).
+bool PickIso() {
+    if (MessageBoxW(nullptr,
+                    L"Nao encontrei o jogo.\n\nQuer escolher agora a imagem do disco (.iso) do seu Def Jam: Fight for "
+                    L"NY de Xbox? Ela sera copiada para a pasta 'assets', ao lado do jogo.\n\n(Ou coloque a .iso na "
+                    L"pasta 'assets' voce mesmo e abra o jogo de novo.)",
+                    kGame.short_title, MB_ICONQUESTION | MB_YESNO) != IDYES)
+        return false;
+    wchar_t file[MAX_PATH] = {};
+    OPENFILENAMEW of{};
+    of.lStructSize = sizeof(of);
+    of.lpstrFilter = L"Imagem do disco (*.iso)\0*.iso\0Todos os arquivos\0*.*\0";
+    of.lpstrFile = file;
+    of.nMaxFile = MAX_PATH;
+    of.lpstrTitle = L"Escolha a .iso do Def Jam: Fight for NY (Xbox)";
+    of.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
+    if (!GetOpenFileNameW(&of)) return false;
+    fs::path dir = ExeDir() / "assets";
+    std::error_code ec;
+    fs::create_directories(dir, ec);
+    // origem e destino terminados em dois zeros, como o SHFileOperation pede
+    std::wstring from = std::wstring(file) + L'\0', to = (dir / fs::path(file).filename()).wstring() + L'\0';
+    SHFILEOPSTRUCTW op{};
+    op.wFunc = FO_COPY;
+    op.pFrom = from.c_str();
+    op.pTo = to.c_str();
+    op.fFlags = FOF_NOCONFIRMMKDIR;
+    return SHFileOperationW(&op) == 0 && !op.fAnyOperationsAborted;
 }
 
 }  // namespace
@@ -111,6 +144,7 @@ bool FindGame(GameFiles& game) {
     }
 
     if (other_name.empty()) {
+        if (PickIso()) return FindGame(game);  // (DefJam)
         MessageBoxW(nullptr, kGame.missing, kGame.short_title, MB_ICONERROR);
         return false;
     }

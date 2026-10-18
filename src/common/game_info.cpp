@@ -16,6 +16,8 @@
 #include "app/app.h"
 #include "core/input.h"
 #include "common/menu.h"
+#include "common/discord.h"
+#include "common/icon.h"
 #include "common/occlusion.h"
 #include "gpu/backend.h"
 
@@ -209,11 +211,15 @@ const app::GameInfo app::kGame = {
     .images = {{"default.xbe", "DefJamFFNY"}},
     .options = {{"ambient_occlusion", nullptr, &defjam::g_ao_mode},
                 {"skip_intros", &defjam::g_skip_intros, nullptr},
-                {"pause_on_focus_loss", &defjam::g_pause_unfocused, nullptr}},
+                {"pause_on_focus_loss", &defjam::g_pause_unfocused, nullptr},
+                {"discord", &defjam::g_discord, nullptr}},
     .load = nullptr,
     .save = nullptr,
-    .init = defjam::InstallOcclusion,
-    .loaded = nullptr,
+    .init = [] {
+        defjam::InstallOcclusion();
+        defjam::StartDiscord();
+    },
+    .loaded = [] { defjam::ApplyGameIcon(app::Window()); },
     .window = PlaceWindow,
     .message = defjam::Message,
     .ui = defjam::DrawUi,

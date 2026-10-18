@@ -10,6 +10,7 @@
 #define NOMINMAX
 #endif
 #include <windows.h>
+#include <shellapi.h>
 
 #include <imgui.h>
 
@@ -18,6 +19,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <cstdio>
+#include <filesystem>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -89,7 +91,7 @@ int IndexOf(const std::vector<T>& v, const T& x) {
 }
 int Wrap(int i, int n) { return (i % n + n) % n; }
 
-constexpr int kRows = 12;  // 11 opções + Fechar
+constexpr int kRows = 13;  // 12 opções + Fechar
 char g_name[16] = {};  // nome do próximo User ID, digitado no teclado do PC
 bool g_name_edit = false;
 
@@ -272,6 +274,14 @@ void DrawPanel() {
         if (ImGui::IsItemDeactivated()) g_name_edit = false;
         ImGui::PopID();
         if (g_name[0]) ImGui::TextDisabled("Na tela do jogo, digite qualquer letra e DONE: o nome vira %s.", g_name);
+    }
+    // abre a pasta dos saves (o HD do port; DEFJAM_HDD nos testes) no Explorer
+    if (Row(11, "Pasta de saves", "A abre no Explorer", 0) || (g_row == 11 && nav[kAccept])) {
+        const wchar_t* hdd = _wgetenv(L"DEFJAM_HDD");
+        std::filesystem::path dir = app::ExeDir() / (hdd ? hdd : L"hdd") / L"E" / L"UDATA";
+        std::error_code ec;
+        std::filesystem::create_directories(dir, ec);
+        ShellExecuteW(nullptr, L"open", dir.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
     }
     ImGui::Separator();
     // Fechar: selecionado vira vermelho; A/Enter ou clique fecha

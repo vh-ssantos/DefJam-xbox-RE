@@ -40,8 +40,9 @@ add_xbe_image(DefJamFFNY default.xbe game.toml ${GAME_PARTITIONS} game)
 
 # (DefJam) ícone do executável: o ícone oficial do jogo no dashboard do Xbox, tirado do $$XTIMAGE do default.xbe do
 # usuário por tools/make_icon.js (fica só na pasta de build, nunca no git). Sem node ou sem o jogo, fica sem ícone.
+option(DEFJAM_EMBED_ICON "embute o icone do XBE no exe (desligado nas versoes distribuidas)" ON)
 find_program(DEFJAM_NODE node)
-if(DEFJAM_NODE AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/assets/default.xbe)
+if(DEFJAM_EMBED_ICON AND DEFJAM_NODE AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/assets/default.xbe)
     set(DEFJAM_ICON ${CMAKE_CURRENT_BINARY_DIR}/icon/defjam.ico)
     add_custom_command(OUTPUT ${DEFJAM_ICON}
         COMMAND ${DEFJAM_NODE} tools/make_icon.js assets/default.xbe ${DEFJAM_ICON}
