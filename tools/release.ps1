@@ -25,6 +25,7 @@ Remove-Item -Recurse -Force $stage -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force (Join-Path $stage 'assets') | Out-Null
 Copy-Item (Join-Path $build 'DefJamFFNY.exe') $stage
 Copy-Item (Join-Path $root 'README.md') $stage
+Copy-Item (Join-Path $root 'LICENSE') (Join-Path $stage 'LICENSE.txt')
 Copy-Item (Join-Path $root 'sdk\LICENSE') (Join-Path $stage 'LICENSE-XboxXBE-Recomp.txt')
 Copy-Item (Join-Path $root 'sdk\THIRD_PARTY.txt') (Join-Path $stage 'THIRD_PARTY.txt')
 $leia = 'Coloque aqui a imagem do disco (.iso) do SEU Def Jam: Fight for NY de Xbox (versao USA).' + "`r`n" +
@@ -34,6 +35,7 @@ $zip = Join-Path $root "dist\DefJam-FFNY-PC-v$version.zip"
 Remove-Item $zip -ErrorAction SilentlyContinue
 # o exe na raiz do zip (a atualizacao automatica extrai DefJamFFNY.exe de la)
 & tar.exe -a -cf $zip -C $stage *
+"SHA-256: $((Get-FileHash $zip).Hash)"
 "pronto: $zip ($([math]::Round((Get-Item $zip).Length / 1MB, 1)) MB)"
 "voltando ao exe com o icone embutido (uso local)"
 Build 'ON'

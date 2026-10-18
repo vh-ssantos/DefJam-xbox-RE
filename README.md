@@ -1,13 +1,33 @@
 # Def Jam: Fight for NY — port nativo para PC (versão de Xbox)
 
-Um port **não oficial** do *Def Jam: Fight for NY* de Xbox (2004) para Windows. Não é um emulador: o código do jogo
-foi recompilado para rodar direto no PC, com imagem em Direct3D 12, som em XAudio2 e controle via SDL.
+Um port **não oficial e gratuito** do *Def Jam: Fight for NY* de Xbox (2004) para Windows. Não é um emulador: o
+código do jogo foi recompilado para rodar direto no PC, com imagem em Direct3D 12, som em XAudio2 e controle via SDL.
 
 Feito com o [XboxXBE-Recomp](https://github.com/TGP482/XboxXBE-Recomp) (TGP482), a mesma ferramenta do port do BLACK.
 
 > [!IMPORTANT]
-> **Este repositório não tem o jogo.** Não há ISO, arquivos de dados, músicas, vídeos nem código do jogo aqui. Você
-> precisa da **sua própria cópia** do Def Jam: Fight for NY de **Xbox, versão americana (USA)**, em imagem `.iso`.
+> **Este projeto não contém o jogo.** Não há ISO, arquivos de dados, músicas, vídeos, artes nem código original do
+> jogo para baixar aqui. Você precisa da **sua própria cópia** do Def Jam: Fight for NY de **Xbox, versão
+> americana (USA)**, em imagem `.iso`, feita a partir do seu disco.
+
+## ⚠️ Antes de baixar: cuidado com golpes
+
+Este port é **100% gratuito** e só é distribuído **aqui**:
+
+**https://github.com/vh-ssantos/DefJam-xbox-RE**
+
+- **Nunca pague** por este port. Se alguém estiver vendendo, cobrando "acesso", "versão premium" ou "chave de
+  ativação", é golpe.
+- O download oficial é **só** a página de [Releases](../../releases) deste repositório. Não baixe de sites, canais,
+  grupos ou links encurtados de terceiros: podem ter vírus ou ladrões de conta.
+- O pacote oficial **nunca vem com o jogo**. Se um "Def Jam PC" vier com a ISO dentro, não é este projeto.
+- O port **nunca pede login, senha, cartão, Discord ou e-mail**. Ele só acessa a internet para ver se há versão
+  nova, no próprio GitHub (dá para desligar com `check_updates = false` no `settings.toml`).
+- **Confira o arquivo:** cada release lista o **SHA-256** do `.zip`. No PowerShell:
+  `Get-FileHash DefJam-FFNY-PC-v0.1.0.zip` tem que dar exatamente o mesmo código da página da release.
+- O `DefJamFFNY.exe` não é assinado digitalmente (custa caro para um projeto gratuito). O Windows SmartScreen pode
+  avisar "aplicativo não reconhecido": clique em **Mais informações → Executar assim mesmo**. Se você baixou de
+  outro lugar, **não** faça isso.
 
 ## O que tem a mais que no Xbox
 
@@ -16,12 +36,12 @@ Feito com o [XboxXBE-Recomp](https://github.com/TGP482/XboxXBE-Recomp) (TGP482),
 - **Oclusão de ambiente** (SSAO / GTAO): sombras de contato que dão profundidade à cena.
 - **Filtro anisotrópico** até 16x.
 - **Menu de opções do PC** dentro do jogo: **F10** no teclado ou **BACK + START** no controle.
-- **Cheats do jogo** com um clique (pontos de recompensa e músicas), no menu do PC.
+- **Cheats do próprio jogo** com um clique: pontos de recompensa e músicas extras.
 - **Nome do User ID digitado no teclado do PC.**
-- **Pular os vídeos de abertura** e **pausar quando a janela perde o foco** (Alt+Tab).
+- **Pular os vídeos de abertura** e **pausar no Alt+Tab** (em tela cheia; em janela o jogo continua rodando).
 - **Pasta de saves** a um clique, saves como arquivos normais (fáceis de copiar e guardar).
 - **Discord**: mostra que você está jogando (no menu, no Battle, no modo história, lutando).
-- **Atualização automática**: o jogo avisa quando sai versão nova e se atualiza sozinho.
+- **Atualização automática**: o jogo avisa quando sai versão nova e se atualiza sozinho, pelo GitHub.
 - Controles de **Xbox, PlayStation e Switch**, com vibração. Até **4 controles** no Battle.
 
 ## Instalar
@@ -44,6 +64,7 @@ Nos dois casos, da segunda vez em diante é só abrir o `DefJamFFNY.exe`. Na pri
 `DefJamFFNY.ico` ao lado do exe (o ícone do jogo, tirado da sua cópia) para você usar num atalho.
 
 > No lugar da ISO também servem os arquivos do disco já extraídos: o `default.xbe` e as pastas dele em `assets`.
+> Só a versão **USA** é suportada; com outra versão o jogo avisa e provavelmente não funciona.
 
 ## Controles
 
@@ -72,8 +93,8 @@ Teclado e mouse (mapeamento completo) ficam para uma próxima versão.
 | Oclusão de ambiente | Desligada, SSAO ou GTAO |
 | Mostrar FPS | Contador no canto da tela |
 | Pular vídeos de abertura | Vai direto para a tela de título |
-| Pausar sem foco | Pausa o jogo e o som no Alt+Tab |
-| Cheat | Escolha um código e aperte A |
+| Pausar sem foco (tela cheia) | Pausa o jogo e o som no Alt+Tab; em janela, o jogo segue rodando |
+| Desbloquear | Os cheats do jogo: escolha com esquerda/direita e aperte A. Cada um vale uma vez por save |
 | Nome do próximo User ID | Digite no teclado do PC; na tela do jogo, digite uma letra qualquer e DONE |
 | Pasta de saves | Abre no Explorer |
 | Versão | Mostra a versão e atualiza quando houver uma nova |
@@ -85,6 +106,11 @@ Tudo fica salvo no `settings.toml` ao lado do exe.
 - Windows 10 ou 11, 64 bits.
 - Placa de vídeo com Direct3D 12.
 - Uns 3 GB livres para a ISO.
+
+## Problemas?
+
+Abra um [issue](../../issues) com o arquivo mais novo da pasta `logs` (ao lado do exe) e, se o jogo fechou sozinho,
+o arquivo de `CrashDumps`. Diga em qual tela aconteceu.
 
 ## Compilar (para quem quer mexer no código)
 
@@ -99,14 +125,26 @@ Tudo fica salvo no `settings.toml` ao lado do exe.
 O código gerado a partir do jogo fica só na sua máquina (`generated/`, fora do git). Os scripts `compilar.cmd`,
 `tools/*.ps1` e `tools/*.js` são as ferramentas de desenvolvimento do autor e têm caminhos da máquina dele
 (Visual Studio e LLVM no drive E:); quem for usar ajusta para a sua. O `build.bat` é o caminho genérico.
+O histórico técnico (o que foi descoberto e corrigido) está em [AGENTS.md](AGENTS.md).
 
-## Créditos e licenças
+## Aviso legal
 
-- [XboxXBE-Recomp](https://github.com/TGP482/XboxXBE-Recomp), por TGP482 (licença MIT): a ferramenta e o runtime
-  (`sdk/`), com ajustes deste projeto marcados com `(DefJam)`.
-- Ideias do port do [BLACK](https://github.com/TGP482/BLACK-XBERecomp) (menu de opções, oclusão de ambiente,
-  pausar sem foco, pular vídeos), reimplementadas aqui.
-- GTAO segundo o artigo de Jimenez et al. (2016) e o [XeGTAO](https://github.com/GameTechDev/XeGTAO) da Intel (MIT).
-- *Def Jam: Fight for NY* é da Electronic Arts e da AKI Corporation. Este projeto não tem ligação com elas.
+Projeto de fã, sem fins lucrativos, feito para preservar e jogar no PC um jogo que você já possui. *Def Jam: Fight
+for NY*, seus personagens, músicas e artes são da **Electronic Arts** e da **AKI Corporation**. Este projeto não tem
+ligação com elas nem com a Microsoft, e não é endossado por elas. Não distribua o jogo; compre ou use a sua cópia.
 
-Feito com a ajuda do [Claude Code](https://claude.com/claude-code).
+## Créditos
+
+- **Autor: [vh-ssantos](https://github.com/vh-ssantos)** — ideia, direção, testes e jogatina.
+- [XboxXBE-Recomp](https://github.com/TGP482/XboxXBE-Recomp), por TGP482 (MIT): a ferramenta e o runtime (`sdk/`),
+  com ajustes deste projeto marcados com `(DefJam)`.
+- Ideias do port do [BLACK](https://github.com/TGP482/BLACK-XBERecomp) (menu de opções, oclusão de ambiente, pausar
+  sem foco, pular vídeos), reimplementadas aqui.
+- GTAO segundo Jimenez et al. (2016) e o [XeGTAO](https://github.com/GameTechDev/XeGTAO) da Intel; SSAO segundo o
+  "Alchemy AO" de McGuire et al. (2011).
+
+Código deste projeto sob licença [MIT](LICENSE) (só o código escrito aqui; não cobre o jogo).
+
+---
+
+Feito por **vh-ssantos** com **Claude** (Anthropic), via [Claude Code](https://claude.com/claude-code).

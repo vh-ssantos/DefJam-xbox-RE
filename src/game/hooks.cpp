@@ -295,10 +295,21 @@ void ApplyPendingCheat() {
     std::string text = msg ? ::kernel::ReadCString(msg, 200) : std::string();
     ctx = saved;
     LOGI("defjam: cheat %s -> %s", code.c_str(), text.c_str());
-    // a tela do jogo recebe "TYPE=n&VALUE=v" quando o código vale (2 = pontos de recompensa), ou um texto de erro
-    std::string shown = text.empty() ? "(sem resposta)" : text;
-    if (text.rfind("TYPE=2&VALUE=", 0) == 0) shown = "Aceito: +" + text.substr(13) + " pontos de recompensa";
-    else if (text.rfind("TYPE=", 0) == 0) shown = "Aceito (" + text + ")";
+    // respostas do jogo: TYPE=1 música liberada (TRACKNAME/ARTIST), TYPE=2 pontos (VALUE), TYPE=4 código já usado
+    auto field = [&](const char* key) {
+        const std::string k = std::string(key) + "=";
+        const size_t at = text.find(k);
+        if (at == std::string::npos) return std::string();
+        return text.substr(at + k.size(), text.find('&', at) == std::string::npos ? std::string::npos
+                                                                                  : text.find('&', at) - at - k.size());
+    };
+    const std::string type = field("TYPE");
+    std::string shown;
+    if (type == "1") shown = "Musica liberada: " + field("ARTIST") + " - " + field("TRACKNAME") + " (toca no jogo e no Beat Box)";
+    else if (type == "2") shown = "+" + field("VALUE") + " pontos de recompensa (use em Unlock Rewards)";
+    else if (type == "4") shown = "Esse codigo ja foi usado neste save (cada um vale uma vez)";
+    else if (text.empty()) shown = "(sem resposta)";
+    else shown = "Resposta do jogo: " + text;
     CheatResult(shown);
 }
 }  // namespace defjam

@@ -102,17 +102,17 @@ struct Cheat {
     const char* what;
 };
 const Cheat kCheats[] = {
-    {"GETSTUFF", "100 pontos de recompensa"},   {"DUCKETS", "100 pontos de recompensa"},
-    {"CROOKLYN", "100 pontos de recompensa"},   {"THESOURCE", "100 pontos de recompensa"},
-    {"NEWJACK", "100 pontos de recompensa"},    {"LOYALTY", "musica: Nene - Afterhours"},
-    {"MILITAIN", "musica: CNN - Anything Goes"}, {"BIGBOI", "musica: Outkast - Bust"},
-    {"CHOPPER", "musica: Baxter - Chopshop"},    {"CHOCOCITY", "musica: Comp - Comp"},
-    {"AKIRA", "musica: Chiang - Dragon House"},  {"PLATINUMB", "musica: Bless - Get it Now"},
-    {"GHOSTSHELL", "musica: Chiang - Koto"},     {"GONBETRUBL", "musica: Ricbyobiche - Lil Bro"},
-    {"KIRKJONES", "musica: Sticky Fingaz - Man Up"}, {"RESPECT", "musica: Public Enemy - Move"},
-    {"POWER", "musica: Ice T - Original Gangster"}, {"ULTRAMAG", "musica: Ultramagnetic MCs - Poppa Large"},
-    {"SIEZE", "musica: Bless - Sieze the Day"},  {"CARTAGENA", "musica: Fat Joe - Take a Look at my Life"},
-    {"PUMP", "musica: Joe Budden - Walk with Me"},
+    {"GETSTUFF", "+100 pontos"},   {"DUCKETS", "+100 pontos"},
+    {"CROOKLYN", "+100 pontos"},   {"THESOURCE", "+100 pontos"},
+    {"NEWJACK", "+100 pontos"},    {"LOYALTY", "Musica: Nene - Afterhours"},
+    {"MILITAIN", "Musica: CNN - Anything Goes"}, {"BIGBOI", "Musica: Outkast - Bust"},
+    {"CHOPPER", "Musica: Baxter - Chopshop"},    {"CHOCOCITY", "Musica: Comp - Comp"},
+    {"AKIRA", "Musica: Chiang - Dragon House"},  {"PLATINUMB", "Musica: Bless - Get it Now"},
+    {"GHOSTSHELL", "Musica: Chiang - Koto"},     {"GONBETRUBL", "Musica: Ricbyobiche - Lil Bro"},
+    {"KIRKJONES", "Musica: Sticky Fingaz - Man Up"}, {"RESPECT", "Musica: Public Enemy - Move"},
+    {"POWER", "Musica: Ice T - Original Gangster"}, {"ULTRAMAG", "Musica: Ultramagnetic MCs - Poppa Large"},
+    {"SIEZE", "Musica: Bless - Sieze the Day"},  {"CARTAGENA", "Musica: Fat Joe - Take a Look at my Life"},
+    {"PUMP", "Musica: Joe Budden - Walk with Me"},
 };
 constexpr int kCheatCount = int(sizeof(kCheats) / sizeof(kCheats[0]));
 int g_cheat = 0;
@@ -231,22 +231,31 @@ void DrawPanel() {
         g_skip_intros = !g_skip_intros;
         save = true;
     }
-    if (Row(8, "Pausar sem foco", g_pause_unfocused ? "Sim" : "Nao", step)) {
+    if (Row(8, "Pausar sem foco (tela cheia)", g_pause_unfocused ? "Sim" : "Nao", step)) {
         g_pause_unfocused = !g_pause_unfocused;
         save = true;
     }
 
     // cheat: esquerda/direita escolhem, A aplica (na thread do jogo)
     {
-        std::string label = std::string(kCheats[g_cheat].code) + "  (" + kCheats[g_cheat].what + ")";
-        if (int st = Row(9, "Cheat (A aplica)", label, step)) g_cheat = Wrap(g_cheat + st, kCheatCount);
+        // mostra o que libera (o código fica na linha de baixo): os cheats do próprio jogo, de Extras -> Cheats
+        char label[96];
+        std::snprintf(label, sizeof label, "%d/%d  %s", g_cheat + 1, kCheatCount, kCheats[g_cheat].what);
+        if (int st = Row(9, "Desbloquear (A)", label, step)) {
+            g_cheat = Wrap(g_cheat + st, kCheatCount);
+            std::lock_guard<std::mutex> lock(g_cheat_lock);
+            g_cheat_result.clear();
+        }
         if (g_row == 9 && nav[kAccept]) {
             std::lock_guard<std::mutex> lock(g_cheat_lock);
             g_cheat_request = kCheats[g_cheat].code;
             g_cheat_result = "enviando...";
         }
         std::lock_guard<std::mutex> lock(g_cheat_lock);
-        if (!g_cheat_result.empty()) ImGui::TextWrapped("Resposta do jogo: %s", g_cheat_result.c_str());
+        if (g_row == 9 || !g_cheat_result.empty())
+            ImGui::TextWrapped("   %s", g_cheat_result.empty()
+                                         ? (std::string("Codigo ") + kCheats[g_cheat].code + " (cheat do jogo). A libera; cada um vale uma vez por save.").c_str()
+                                         : g_cheat_result.c_str());
     }
     // nome do próximo User ID: A (ou Enter) neste item abre o campo; Enter fecha
     {
@@ -367,9 +376,11 @@ void WaitWhileUnfocused() {
     auto unfocused = [] {
         return g_hwnd && IsWindowVisible(g_hwnd) && (GetForegroundWindow() != g_hwnd || IsIconic(g_hwnd));
     };
-    if (tests || !g_pause_unfocused || !unfocused()) return;
+    // em janela o jogo segue rodando (como nos jogos de PC); pausa só em tela cheia / sem bordas
+    auto windowed = [] { return app::Get().display_mode == app::DisplayMode::Windowed; };
+    if (tests || !g_pause_unfocused || windowed() || !unfocused()) return;
     audio::g_paused = true;
-    while (g_pause_unfocused && unfocused()) Sleep(20);
+    while (g_pause_unfocused && !windowed() && unfocused()) Sleep(20);
     audio::g_paused = false;
 }
 
