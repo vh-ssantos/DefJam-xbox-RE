@@ -37,3 +37,21 @@ endif()
 
 # target name = GAME_EXE in build.bat, xbe = GAME_XBE
 add_xbe_image(DefJamFFNY default.xbe game.toml ${GAME_PARTITIONS} game)
+
+# (DefJam) ícone do executável: o ícone oficial do jogo no dashboard do Xbox, tirado do $$XTIMAGE do default.xbe do
+# usuário por tools/make_icon.js (fica só na pasta de build, nunca no git). Sem node ou sem o jogo, fica sem ícone.
+find_program(DEFJAM_NODE node)
+if(DEFJAM_NODE AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/assets/default.xbe)
+    set(DEFJAM_ICON ${CMAKE_CURRENT_BINARY_DIR}/icon/defjam.ico)
+    add_custom_command(OUTPUT ${DEFJAM_ICON}
+        COMMAND ${DEFJAM_NODE} tools/make_icon.js assets/default.xbe ${DEFJAM_ICON}
+        DEPENDS tools/make_icon.js assets/default.xbe
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/icon/defjam.rc
+        "1 ICON \"${DEFJAM_ICON}\"\n"
+        "1 VERSIONINFO\nFILEOS 0x40004\nFILETYPE 0x1\nBEGIN\n BLOCK \"StringFileInfo\"\n BEGIN\n  BLOCK \"040904B0\"\n  BEGIN\n"
+        "   VALUE \"FileDescription\", \"Def Jam: Fight for NY (PC)\"\n   VALUE \"ProductName\", \"Def Jam: Fight for NY\"\n"
+        "  END\n END\n BLOCK \"VarFileInfo\"\n BEGIN\n  VALUE \"Translation\", 0x409, 1200\n END\nEND\n")
+    set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/icon/defjam.rc PROPERTIES OBJECT_DEPENDS ${DEFJAM_ICON})
+    target_sources(DefJamFFNY PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/icon/defjam.rc)
+endif()

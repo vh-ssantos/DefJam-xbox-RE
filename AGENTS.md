@@ -22,6 +22,15 @@ x86 -> C++, D3D8 -> D3D12, DirectSound -> XAudio2. O port de PS2 (E:\Projetos\De
   Log "defjam: timer pedido ... no passado" (DEFJAM_LOG=1) mostra se isso acontece. Ainda não reproduzido de novo.
 - Direções seguradas 0.4 s repetem nos menus (anda 2 casas): use "RIGHT 0.15". Toques de 0.2 s às vezes se perdem (telas com vídeo/diálogo); o padrão do live.ps1 agora é 0.4 s.
 
+## Imagem, widescreen e ícone (2026-10-18)
+- settings.toml (do jogador): borderless na resolução do monitor, aniso 16. Testes (DEFJAM_WINDOW_MONITOR) usam
+  settings-teste.toml (janela 1280x720), para não mexer no do jogador.
+- render_percent = % da altura da saída (225 = supersampling 1620p numa janela de 720p): 60 fps cravados na RX 7800 XT.
+- Widescreen é nativo do jogo: com saída >= 3:2 o runtime reporta TV widescreen e o jogo abre a câmera (testado 16:9
+  e 4:3, proporções corretas nos dois).
+- Ícone: tools/make_icon.js tira o ícone oficial do dashboard ($XTIMAGE, XPR0 DXT1 128x128) do default.xbe e o
+  CMake embute num .rc gerado na pasta de build (nada do jogo vai para o git).
+
 ## Diagnóstico
 - **Teste ao vivo (o melhor):** tools/live.ps1 start | press "A" "DOWN 0.3" ... | shot <nome> | stop. O jogo lê os
   botões de runs/pad_cmd.txt (DEFJAM_PAD_CMD), então dá para olhar a tela e decidir o próximo botão. START pula os

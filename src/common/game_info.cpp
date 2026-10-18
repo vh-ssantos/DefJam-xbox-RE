@@ -174,7 +174,8 @@ const app::GameInfo app::kGame = {
     .short_title = L"Def Jam FFNY",
     .name = L"DefJamFFNY",
     .log = "defjam",
-    .settings = "settings.toml",
+    // os testes automáticos (DEFJAM_WINDOW_MONITOR) usam um arquivo próprio, em janela, sem mexer no do jogador
+    .settings = std::getenv("DEFJAM_WINDOW_MONITOR") ? "settings-teste.toml" : "settings.toml",
     .splash = L"splash",
     .missing = L"Coloque o jogo na pasta assets: a imagem do disco (.iso) ou o default.xbe com as pastas ao lado.",
     .images = {{"default.xbe", "DefJamFFNY"}},
