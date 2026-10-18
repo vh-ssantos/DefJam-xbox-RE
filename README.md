@@ -96,7 +96,9 @@ Tudo fica salvo no `settings.toml` ao lado do exe.
 4. Rode `build.bat`. A primeira compilação recompila o jogo inteiro e pode levar de 30 a 90 minutos.
 5. O jogo sai em `out\build\release\DefJamFFNY.exe`.
 
-O código gerado a partir do jogo fica só na sua máquina (`generated/`, fora do git).
+O código gerado a partir do jogo fica só na sua máquina (`generated/`, fora do git). Os scripts `compilar.cmd`,
+`tools/*.ps1` e `tools/*.js` são as ferramentas de desenvolvimento do autor e têm caminhos da máquina dele
+(Visual Studio e LLVM no drive E:); quem for usar ajusta para a sua. O `build.bat` é o caminho genérico.
 
 ## Créditos e licenças
 
