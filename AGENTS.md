@@ -213,3 +213,22 @@ x86 -> C++, D3D8 -> D3D12, DirectSound -> XAudio2. O port de PS2 (E:\Projetos\De
   proporção / k; sub-visões ficam 4:3. ScreenAspect() = 16:9 (o mesmo do BlitFrame), não a proporção do monitor.
 - Fonte do mapa: docs/widescreen do vyanhursky/DefJamFFNY-recomp (mesmo XBE, MIT). Creditado no README.
 - Próximo: fundo lateral (hoje preto nos menus; o dele usa desfoque), canvas mais largo (hoje 640*escala esticado).
+
+## Distribuição nova (v0.2.0, 2026-10-19): o jogo é montado no PC do jogador
+- Pedido do usuário depois de comparar com o vyanhursky: o zip não leva mais exe (o exe tem o código do jogo
+  traduzido). tools/release.ps1 (exige git limpo) -> dist/DefJam-FFNY-PC-v<versão>.zip: Instalar.cmd, README,
+  licenças, assets/ com instruções e source/ (git archive do HEAD + deps/ zydis, tomlplusplus, imgui, sdl3 copiados
+  de out/build/release/_deps sem .git). ~21 MB.
+- setup/instalar.ps1 (WinForms, PT/EN, UTF-8 com BOM para o PowerShell 5): lê o default.xbe da .iso (C# DjIso,
+  partições 0 e 0x18300000), confere o SHA-1 da USA, grava source/assets/default.xbe (o runtime prefere o xbe
+  extraído em assets/, então o da compilação fica em source/), copia a .iso para <raiz>/assets; acha o VS por
+  vswhere com VC.Tools + VC.Llvm.Clang + VC.CMake.Project, ou baixa o vs_BuildTools.exe oficial (confere a assinatura
+  da Microsoft) e instala com RunAs; escreve source/out/setup-build.cmd (VsDevCmd + PATH do clang/cmake/ninja do VS +
+  FETCHCONTENT_SOURCE_DIR_* para deps/ + DEFJAM_EMBED_ICON=OFF) e mostra o progresso do ninja; copia o exe para a
+  raiz; atalhos. Log em <raiz>/logs/instalacao-*.log. -Update (depois da atualização), -Iso/-Auto (sem cliques),
+  DEFJAM_SETUP_LLVM (clang portátil; esta máquina não tem o clang do VS).
+- update.cpp: baixa o zip, extrai em update-tmp, robocopy source/ por cima de <raiz>/source (o que não veio fica:
+  assets/default.xbe, out/), copia Instalar.cmd/README/licenças, roda Instalar.cmd -Update e fecha o jogo.
+- Quem tem v0.1.x: o atualizador antigo procura DefJamFFNY.exe no zip e falha ("Falhou ao instalar"); precisa
+  baixar a v0.2.0 à mão (dizer nas notas da release).
+- Linux/Proton: o instalador não roda lá; montar no Windows e copiar a pasta (README).
