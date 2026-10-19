@@ -1,6 +1,6 @@
 // Atualização automática pelo GitHub Releases: ao abrir, consulta a versão mais nova do repositório; se for maior que
-// a deste exe, o menu F10 oferece atualizar. Atualizar baixa o .zip da versão, renomeia o exe em uso (o Windows deixa)
-// e extrai o novo no lugar com o tar do Windows; vale ao abrir o jogo de novo. Saves, settings e assets ficam.
+// a deste exe, o menu F10 oferece atualizar. Atualizar baixa o .zip da versão (só código, nada do jogo), põe o código
+// novo em source e roda o Instalar.cmd -Update, que recompila no PC do jogador. Saves, settings e assets ficam.
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
@@ -138,33 +138,49 @@ void Install(std::string url) {
         g_busy = false;
         return;
     }
+    // o zip traz o código novo (source); o Instalar.cmd -Update recompila só o que mudou e troca o exe. O jogo fecha
+    // para isso (o exe em uso não pode ser trocado), e o instalador mostra o progresso
     const fs::path dir = app::ExeDir();
-    const fs::path tmp = dir / L"update.zip";
-    std::ofstream(tmp, std::ios::binary).write(zip.data(), std::streamsize(zip.size()));
-    // o exe em uso pode ser renomeado; o novo entra no lugar
+    const fs::path tmp = dir / L"update.zip", unpacked = dir / L"update-tmp";
     std::error_code ec;
-    const fs::path exe = dir / L"DefJamFFNY.exe", old = dir / L"DefJamFFNY.old.exe";
-    fs::remove(old, ec);
-    fs::rename(exe, old, ec);
-    std::wstring cmd = L"tar.exe -xf \"" + tmp.wstring() + L"\" -C \"" + dir.wstring() + L"\" DefJamFFNY.exe";
-    STARTUPINFOW si{sizeof(si)};
-    PROCESS_INFORMATION pi{};
-    bool ok = CreateProcessW(nullptr, cmd.data(), nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr, nullptr, &si, &pi);
-    if (ok) {
-        WaitForSingleObject(pi.hProcess, 60000);
-        DWORD code = 1;
+    fs::remove_all(unpacked, ec);
+    fs::create_directories(unpacked, ec);
+    std::ofstream(tmp, std::ios::binary).write(zip.data(), std::streamsize(zip.size()));
+    auto run = [](std::wstring cmd, DWORD& code) {
+        STARTUPINFOW si{sizeof(si)};
+        PROCESS_INFORMATION pi{};
+        if (!CreateProcessW(nullptr, cmd.data(), nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr, nullptr, &si, &pi)) return false;
+        WaitForSingleObject(pi.hProcess, 600000);
         GetExitCodeProcess(pi.hProcess, &code);
-        ok = code == 0 && fs::exists(exe, ec);
         CloseHandle(pi.hProcess);
         CloseHandle(pi.hThread);
-    }
+        return true;
+    };
+    DWORD code = 1;
+    bool ok = run(L"tar.exe -xf \"" + tmp.wstring() + L"\" -C \"" + unpacked.wstring() + L"\"", code) && code == 0 &&
+              fs::exists(unpacked / L"source" / L"setup" / L"instalar.ps1", ec) && fs::exists(dir / L"source", ec);
+    // robocopy: 0 a 7 é sucesso; o que já existe e não veio no zip (assetsdefault.xbe, out) fica
+    if (ok) ok = run(L"robocopy \"" + (unpacked / L"source").wstring() + L"\" \"" + (dir / L"source").wstring() + L"\" /E /NFL /NDL /NJH /NJS /NP", code) && code < 8;
+    for (const wchar_t* top : {L"Instalar.cmd", L"README.md", L"LICENSE.txt", L"THIRD_PARTY.txt"})
+        if (ok) fs::copy_file(unpacked / top, dir / top, fs::copy_options::overwrite_existing, ec);
     fs::remove(tmp, ec);
+    fs::remove_all(unpacked, ec);
     if (!ok) {
-        fs::rename(old, exe, ec);  // volta como estava
         SetStatus(T("Falhou ao instalar. O jogo continua na versao atual.", "Install failed. The game stays on this version."));
-    } else {
-        SetStatus(T("Pronto! Feche e abra o jogo para usar a versao nova.", "Done! Close and reopen the game to use the new version."));
+        g_busy = false;
+        return;
     }
+    SetStatus(T("Fechando o jogo para recompilar...", "Closing the game to rebuild..."));
+    std::wstring setup = L"cmd.exe /c \"\"" + (dir / L"Instalar.cmd").wstring() + L"\" -Update\"";
+    STARTUPINFOW si{sizeof(si)};
+    PROCESS_INFORMATION pi{};
+    if (CreateProcessW(nullptr, setup.data(), nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr, dir.c_str(), &si, &pi)) {
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
+        Sleep(1500);
+        ExitProcess(0);
+    }
+    SetStatus(T("Codigo novo baixado: rode o Instalar.cmd para terminar.", "New code downloaded: run Instalar.cmd to finish."));
     g_busy = false;
 }
 
