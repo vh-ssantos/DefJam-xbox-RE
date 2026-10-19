@@ -232,3 +232,20 @@ x86 -> C++, D3D8 -> D3D12, DirectSound -> XAudio2. O port de PS2 (E:\Projetos\De
 - Quem tem v0.1.x: o atualizador antigo procura DefJamFFNY.exe no zip e falha ("Falhou ao instalar"); precisa
   baixar a v0.2.0 à mão (dizer nas notas da release).
 - Linux/Proton: o instalador não roda lá; montar no Windows e copiar a pasta (README).
+
+## PASSAGEM DE BASTÃO (2026-10-19) — leia isto primeiro
+Estado: main tem o widescreen completo + a distribuição nova (DEFJAM_VERSION 0.2.0), tudo testado aqui:
+- instalador de ponta a ponta numa pasta limpa (E:TesteSetup, do zip de tools/release.ps1): leu a .iso, SHA-1 ok,
+  copiou, compilou (2,5 min do zero com DEFJAM_SETUP_LLVM=E:Toolsllvmin), "Pronto"; o exe montado abre a .iso.
+- NÃO publicado ainda. Para publicar a v0.2.0 (só com o OK do usuário, que gosta de testar antes):
+  1. git limpo -> tools/release.ps1 -> dist/DefJam-FFNY-PC-v0.2.0.zip (imprime o SHA-256);
+  2. gh release create v0.2.0 com o zip e notas PT/EN (modelo em notas-v0.1.1 no histórico: avisar que quem tem
+     v0.1.x precisa baixar à mão, porque o atualizador antigo procura o exe no zip; explicar o Instalar.cmd);
+  3. remover o exe pronto das releases v0.1.0/v0.1.1 (gh release delete-asset) SÓ com o OK explícito do usuário.
+- Pendências, em ordem: (1) texturas HD: Lanczos 4x geradas da ISO do jogador no instalador + troca de textura
+  por hash no renderer (docs/hd-textures.md do vyanhursky); (2) teclado e remapeamento; (3) menu de dev da EA
+  (achado pelo vyanhursky, docs/developer-menu.md lá); (4) online amigo x amigo (seção Pendências acima; diferencial,
+  nenhum port tem); (5) fundo desfocado nas laterais dos menus em 16:9; (6) canvas mais largo (hoje 640*escala
+  esticado no 16:9).
+- Regras do usuário continuam: pt-BR, nada de teclas no PC (só DEFJAM_PAD_CMD), foto só da janela do port, não
+  fechar o jogo dele, commits com Co-Authored-By, avisar antes de publicar.
