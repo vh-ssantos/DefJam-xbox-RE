@@ -5,7 +5,7 @@ código do jogo foi recompilado para rodar direto no PC, com imagem em Direct3D 
 
 Feito com o [XboxXBE-Recomp](https://github.com/TGP482/XboxXBE-Recomp) (TGP482), a mesma ferramenta do port do BLACK.
 
-> **English speakers:** the port and its menus switch to English automatically on a non-Portuguese Windows (or pick it in the in-game F10 menu). Quick start: download the zip from Releases, put your own Xbox (USA) .iso in the `assets` folder (or open the exe and pick the .iso), and play.
+> **English speakers:** the port and its menus switch to English automatically on a non-Portuguese Windows (or pick it in the in-game F10 menu). Quick start: download the zip from Releases, unzip it, run `Instalar.cmd` and pick your own Xbox (USA) .iso. The setup builds the game on your PC from your disc (no game code is downloaded); the first build takes 30 to 90 minutes and needs Microsoft's free Visual Studio Build Tools, which the setup offers to install.
 
 > [!IMPORTANT]
 > **Este projeto não contém o jogo.** Não há ISO, arquivos de dados, músicas, vídeos, artes nem código original do
@@ -22,14 +22,16 @@ Este port é **100% gratuito** e só é distribuído **aqui**:
   ativação", é golpe.
 - O download oficial é **só** a página de [Releases](../../releases) deste repositório. Não baixe de sites, canais,
   grupos ou links encurtados de terceiros: podem ter vírus ou ladrões de conta.
-- O pacote oficial **nunca vem com o jogo**. Se um "Def Jam PC" vier com a ISO dentro, não é este projeto.
+- O pacote oficial **nunca vem com o jogo**, nem com o jogo já compilado: ele traz só o código do port e um instalador
+  que monta o jogo no seu PC a partir da **sua** ISO. Se um "Def Jam PC" vier com a ISO ou com um exe pronto para
+  jogar, não é este projeto.
 - O port **nunca pede login, senha, cartão, Discord ou e-mail**. Ele só acessa a internet para ver se há versão
   nova, no próprio GitHub (dá para desligar com `check_updates = false` no `settings.toml`).
 - **Confira o arquivo:** cada release lista o **SHA-256** do `.zip`. No PowerShell:
-  `Get-FileHash DefJam-FFNY-PC-v0.1.0.zip` tem que dar exatamente o mesmo código da página da release.
-- O `DefJamFFNY.exe` não é assinado digitalmente (custa caro para um projeto gratuito). O Windows SmartScreen pode
-  avisar "aplicativo não reconhecido": clique em **Mais informações → Executar assim mesmo**. Se você baixou de
-  outro lugar, **não** faça isso.
+  `Get-FileHash DefJam-FFNY-PC-v0.2.0.zip` tem que dar exatamente o mesmo código da página da release.
+- O instalador é um script que dá para ler (`sourcesetupinstalar.ps1`): ele só baixa o instalador oficial da
+  Microsoft (e confere a assinatura dele antes de abrir). O jogo montado não é assinado digitalmente; o Windows
+  SmartScreen pode avisar "aplicativo não reconhecido" na primeira vez.
 
 ## O que tem a mais que no Xbox
 
@@ -49,25 +51,25 @@ Este port é **100% gratuito** e só é distribuído **aqui**:
 
 ## Instalar
 
-Escolha **um** dos dois jeitos. Os dois dão no mesmo resultado.
+O jogo é **montado no seu PC** a partir da **sua** ISO: o zip não traz nada do jogo, só o código do port. Por isso a
+primeira instalação demora, mas é o jeito mais limpo de distribuir um port (é o mesmo modelo do
+[DefJamFFNY-recomp](https://github.com/vyanhursky/DefJamFFNY-recomp)).
 
-### Jeito 1: colocar a ISO na pasta (o mesmo do port do BLACK)
+1. Baixe o `.zip` da [versão mais nova](../../releases/latest) e descompacte numa pasta com caminho curto e sem
+   acentos (ex.: `C:JogosDefJam`).
+2. Abra o **`Instalar.cmd`**.
+3. Escolha a sua `.iso` (ou coloque-a antes na pasta `assets`, que ele já acha). Ele confere se é a versão USA.
+4. Se faltarem as ferramentas gratuitas de compilação da Microsoft (**Visual Studio Build Tools**, com C++, Clang e
+   CMake), ele pergunta e instala pelo instalador oficial da Microsoft (o Windows pede permissão de administrador).
+5. Ele compila o jogo: **de 30 a 90 minutos na primeira vez**, com barra de progresso. Pode usar o PC enquanto isso.
+6. No fim aparece **Jogar**, e um atalho na área de trabalho e no menu Iniciar.
 
-1. Baixe o `.zip` da [versão mais nova](../../releases/latest) e descompacte numa pasta (ex.: `C:\Jogos\DefJam`).
-2. Coloque a sua `.iso` do jogo dentro da pasta `assets` que veio no zip.
-3. Abra `DefJamFFNY.exe`.
+Espaço: uns 3 GB para a ISO, uns 10 GB para a compilação e de 5 a 8 GB para as ferramentas da Microsoft (se você
+ainda não tiver o Visual Studio). As atualizações (F10 → Versão) baixam só o código novo e recompilam o que mudou.
 
-### Jeito 2: escolher a ISO ao abrir
-
-1. Baixe o `.zip` da [versão mais nova](../../releases/latest) e descompacte numa pasta.
-2. Abra `DefJamFFNY.exe`. Ele avisa que não achou o jogo e pergunta se quer **escolher a `.iso`**.
-3. Escolha o arquivo. O jogo copia a ISO para a pasta `assets` (aparece a barra de progresso do Windows) e abre.
-
-Nos dois casos, da segunda vez em diante é só abrir o `DefJamFFNY.exe`. Na primeira vez ele cria um
-`DefJamFFNY.ico` ao lado do exe (o ícone do jogo, tirado da sua cópia) para você usar num atalho.
-
-> No lugar da ISO também servem os arquivos do disco já extraídos: o `default.xbe` e as pastas dele em `assets`.
-> Só a versão **USA** é suportada; com outra versão o jogo avisa e provavelmente não funciona.
+> No lugar da ISO também serve uma cópia extraída do disco: escolha o `default.xbe` dela.
+> Só a versão **USA** é suportada; com outra versão o instalador avisa e o jogo provavelmente não funciona.
+> Se algo falhar, o botão **Abrir registro** mostra o que aconteceu: mande esse arquivo num issue.
 
 ## Controles
 
@@ -117,7 +119,8 @@ Tudo fica salvo no `settings.toml` ao lado do exe.
 Ainda não há versão nativa, mas o port deve rodar pelo **Proton** (a camada da Valve que roda jogos de Windows),
 que traduz o Direct3D 12 com o vkd3d-proton. Ainda não foi testado pelo autor:
 
-1. Descompacte o zip numa pasta e coloque a sua `.iso` em `assets`.
+1. Por enquanto o instalador só roda no Windows: monte o jogo num PC com Windows (veja **Instalar**) e copie a
+   pasta inteira (com o `DefJamFFNY.exe` e a `assets`) para o Linux. A pasta `source` pode ficar de fora.
 2. Na Steam: **Adicionar um jogo → Adicionar um jogo que não é da Steam**, escolha o `DefJamFFNY.exe`.
 3. Nas propriedades dele: **Compatibilidade → Forçar uma ferramenta de compatibilidade**, escolha o Proton mais novo.
 
