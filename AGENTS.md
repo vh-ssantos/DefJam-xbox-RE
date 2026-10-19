@@ -255,10 +255,30 @@ Estado: main = v0.3.0 publicada (widescreen completo, instalador que monta o jog
   out\compilar.log fica o antigo!). Use o caminho completo: cmd //c "E:\Projetos\DefJam-xbox-RE\compilar.cmd".
 - Para publicar uma versão: subir DEFJAM_VERSION, git limpo e enviado, tools/release.ps1 -> dist/*.zip (SHA-256),
   gh release create vX.Y.Z com o zip e notas PT/EN, baixar de volta e conferir o SHA-256. Avisar o usuário antes.
-- Pendências, em ordem: (1) teste em PC limpo (usuário); (2) teclado e remapeamento; (3) menu de dev da EA
+- Pendências, em ordem: (1) teste em PC limpo (usuário); (2) ~~teclado e remapeamento~~ feito na main depois da
+  v0.3.0 (seção abaixo; falta o usuário testar o teclado de verdade e publicar); (3) menu de dev da EA
   (docs/developer-menu.md do vyanhursky); (4) online amigo x amigo (diferencial, nenhum port tem); (5) fundo
   desfocado nas laterais dos menus em 16:9; (6) canvas mais largo; (7) testar o resto do jogo (modos, arenas,
   história) também com HD (alfa de material pode estar errado em alguma textura).
+
+## Teclado e remapeamento (2026-10-19, depois da v0.3.0) — src/common/controls.cpp
+- Teclado = controle do jogador 1 (porta 0): defjam::Message -> KeyMessage guarda as teclas (WM_KEYDOWN/UP, limpa
+  no WM_KILLFOCUS); PadHook soma o teclado depois do FeedPad e só com o menu fechado (entra no "tudo solto"), e
+  marca connected (só teclado também é jogador 1). Tecla de direção = analógico no fim do curso.
+- Padrão: WASD analógico esq., setas direcional, J=Y soco, K=X chute, L=A agarrar, I=B, U/O gatilhos L/R, N/M
+  branco/preto, Q/E L3/R3, TFGH analógico dir., Enter/Backspace START/BACK. Opção keyboard (bool).
+- Troca de botões do controle: RemapPad(port) logo depois do PadScript, em todos os controles; a ação i vem do
+  botão g_from[i] (permutação; botão repetido no arquivo -> volta ao padrão). A captura "aperte o botão" só olha a
+  porta 0 (as portas vazias diziam "tudo solto" com o A que abriu a captura ainda apertado: pegava o A).
+- Uma tecla/botão por ação: atribuir troca com quem tinha. settings.toml: [teclado] y = 'J', [controle] y = 'b'
+  (nomes estáveis em inglês; pontuação vira 0xBA etc.; a fonte do menu não tem acentos).
+- F10 -> "Teclado e controle" (página 2 do menu, lista rolável): A/Enter captura, esquerda/direita escolhem a
+  coluna, Esc cancela a tecla, B volta. Depois de pegar, a navegação é ignorada 300 ms (CaptureBusy).
+- Teste sem tocar no teclado do PC: DEFJAM_PAD_CMD aceita KEY_<nome> (KEY_J, KEY_Enter, "KEY_W+KEY_J"), tecla
+  simulada dentro do processo, que também responde à captura. Testado: abertura, título, menus, seleção (WASD),
+  luta (J/K acertam), troca P no soco, troca B<->Y no controle, restaurar. Atenção: uma troca salva no
+  settings-teste.toml muda o que os roteiros de botões fazem (apague [controle]/[teclado] dele depois).
+- Não testado aqui: o teclado físico (regra: nenhuma tecla no PC) -> o usuário testa.
 - Regras do usuário continuam: pt-BR, nada de teclas no PC (só DEFJAM_PAD_CMD), foto só da janela do port, não
   fechar o jogo dele, commits com Co-Authored-By, avisar antes de publicar.
 

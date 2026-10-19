@@ -5,7 +5,7 @@ código do jogo foi recompilado para rodar direto no PC, com imagem em Direct3D 
 
 Feito com o [XboxXBE-Recomp](https://github.com/TGP482/XboxXBE-Recomp) (TGP482), a mesma ferramenta do port do BLACK.
 
-> **English speakers:** the port and its menus switch to English automatically on a non-Portuguese Windows (or pick it in the in-game F10 menu). Quick start: download the zip from Releases, unzip it, run `Instalar.cmd` and pick your own Xbox (USA) .iso. The setup builds the game on your PC from your disc (no game code is downloaded); the first build takes a few minutes and needs Microsoft's free Visual Studio Build Tools, which the setup offers to install. Optional HD textures (4x Lanczos, generated locally from your own ISO, ~6 GB) are a checkbox in the setup.
+> **English speakers:** the port and its menus switch to English automatically on a non-Portuguese Windows (or pick it in the in-game F10 menu). Quick start: download the zip from Releases, unzip it, run `Instalar.cmd` and pick your own Xbox (USA) .iso. The setup builds the game on your PC from your disc (no game code is downloaded); the first build takes a few minutes and needs Microsoft's free Visual Studio Build Tools, which the setup offers to install. Optional HD textures (4x Lanczos, generated locally from your own ISO, ~6 GB) are a checkbox in the setup. Keyboard works as player 1 (WASD move, J punch, K kick, L grab, U/O triggers, Enter = START); remap keys and controller buttons in F10 → Keyboard and controller.
 
 > [!IMPORTANT]
 > **Este projeto não contém o jogo.** Não há ISO, arquivos de dados, músicas, vídeos, artes nem código original do
@@ -85,7 +85,28 @@ São os do Xbox. No controle de PlayStation: X = A, Círculo = B, Quadrado = X, 
 | START | Pausa |
 | BACK + START | Menu de opções do PC |
 
-Teclado e mouse (mapeamento completo) ficam para uma próxima versão.
+### Teclado
+
+O teclado do PC funciona como o controle do jogador 1 (dá para jogar só nele, ou junto com um controle):
+
+| Tecla | Botão do Xbox | Na luta |
+|---|---|---|
+| W A S D | Analógico esquerdo | Andar |
+| J | Y | Soco |
+| K | X | Chute |
+| L | A | Agarrar |
+| I | B | |
+| U / O | Gatilhos L / R | U + J ou K: golpes fortes |
+| N / M | Branco / Preto | |
+| Q / E | L3 / R3 (apertar os analógicos) | |
+| T F G H | Analógico direito | |
+| Setas | Direcional | Menus |
+| Enter / Backspace | START / BACK | |
+| F10 | | Menu de opções do PC |
+
+**Trocar teclas e botões:** F10 → **Teclado e controle**. Escolha a ação, aperte A (ou Enter) e depois a tecla ou o
+botão do controle novo. Se a tecla ou o botão já fazia outra ação, as duas trocam. Ali também dá para desligar o
+teclado e restaurar o padrão. Fica salvo no `settings.toml` (seções `[teclado]` e `[controle]`).
 
 ## Menu de opções do PC (F10 ou BACK + START)
 
@@ -106,6 +127,8 @@ Teclado e mouse (mapeamento completo) ficam para uma próxima versão.
 | Nome do próximo User ID | Digite no teclado do PC; na tela do jogo, digite uma letra qualquer e DONE |
 | Pasta de saves | Abre no Explorer |
 | Versão | Mostra a versão e atualiza quando houver uma nova |
+| Texturas HD | Liga ou desliga as texturas HD (gere o pacote no instalador). Vale ao reiniciar |
+| Teclado e controle | Teclas do teclado e botões do controle, um por ação (veja acima) |
 
 Tudo fica salvo no `settings.toml` ao lado do exe.
 

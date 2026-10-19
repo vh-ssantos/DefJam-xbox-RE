@@ -16,6 +16,7 @@
 #include "app/app.h"
 #include "core/input.h"
 #include "common/menu.h"
+#include "common/controls.h"
 #include "common/discord.h"
 #include "common/icon.h"
 #include "common/lang.h"
@@ -95,6 +96,7 @@ void ApplyButtons(const std::string& s, input::Pad& p) {
         else if (b == "LSD") p.ly = -32767;
         else if (b == "LSL") p.lx = -32767;
         else if (b == "LSR") p.lx = 32767;
+        else if (b.rfind("KEY_", 0) == 0) defjam::PressTestKey(b.substr(4));  // tecla simulada no processo
     }
 }
 
@@ -145,6 +147,7 @@ void PadScript(int port, input::Pad& pad) {
         gpu::g_capture = true;
     }
     pad.connected = true;
+    defjam::BeginTestKeys();
     for (const ScriptPress& s : script)
         if (t >= s.at && t <= s.at + s.len) ApplyButtons(s.buttons, pad);
     if (live_path) {
@@ -177,6 +180,7 @@ void PadScript(int port, input::Pad& pad) {
 // controle 0: script de teste, depois BACK+START abre/fecha o menu de opções; com o menu aberto o jogo não vê o controle
 void PadHook(int port, input::Pad& pad) {
     PadScript(port, pad);
+    defjam::RemapPad(port, pad);  // botões trocados no F10 (todos os controles)
     if (port != 0) return;
     defjam::WaitWhileUnfocused();
     defjam::ApplyPendingCheat();
@@ -186,6 +190,8 @@ void PadHook(int port, input::Pad& pad) {
     if (both && !combo) defjam::ToggleMenu();
     combo = both;
     defjam::FeedPad(pad);
+    // o teclado do PC soma ao jogador 1 (com o menu aberto as teclas são do menu); entra no "tudo solto" abaixo
+    if (!defjam::MenuOpen()) defjam::ApplyKeyboard(pad);
     const bool any = pad.buttons || pad.analog[0] || pad.analog[1] || pad.analog[2] || pad.analog[3] ||
                      pad.analog[6] || pad.analog[7];
     // menu aberto: o jogo não vê o controle; ao fechar, só volta a ver depois de tudo solto (o B que fechou não vira B
@@ -221,9 +227,10 @@ const app::GameInfo app::kGame = {
                 {"hd_textures", nullptr, &app::g_hd_textures},
                 {"pause_on_focus_loss", &defjam::g_pause_unfocused, nullptr},
                 {"discord", &defjam::g_discord, nullptr},
-                {"check_updates", &defjam::g_check_updates, nullptr}},
-    .load = nullptr,
-    .save = nullptr,
+                {"check_updates", &defjam::g_check_updates, nullptr},
+                {"keyboard", &defjam::g_keyboard, nullptr}},
+    .load = defjam::LoadControls,
+    .save = defjam::SaveControls,
     .init = [] {
         defjam::InstallOcclusion();
         defjam::StartDiscord();

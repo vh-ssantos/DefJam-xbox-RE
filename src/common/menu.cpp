@@ -26,6 +26,7 @@
 
 #include "app/app.h"
 #include "common/menu.h"
+#include "common/controls.h"
 #include "common/lang.h"
 #include "common/occlusion.h"
 #include "common/update.h"
@@ -93,7 +94,9 @@ int IndexOf(const std::vector<T>& v, const T& x) {
 }
 int Wrap(int i, int n) { return (i % n + n) % n; }
 
-constexpr int kRows = 17;  // 16 opções + Fechar
+constexpr int kRows = 18;  // 17 opções + Fechar
+constexpr int kControlsRow = 16;
+int g_page = 0;  // 0 opções, 1 teclado e controle
 char g_name[16] = {};  // nome do próximo User ID, digitado no teclado do PC
 bool g_name_edit = false;
 
@@ -145,6 +148,103 @@ int Row(int index, const char* label, const std::string& value, int nav_step) {
     return step;
 }
 
+// teclado e controle: cada ação do controle do Xbox com a sua tecla e o botão do controle que a faz.
+// Cima/baixo escolhem a ação, esquerda/direita a coluna, A (Enter) espera a tecla ou o botão novo.
+void DrawControls(const int* nav) {
+    constexpr int kList = 1, kReset = kList + kActions, kBackRow = kReset + 1, kCount = kBackRow + 1;
+    static int col = 0, shown = -1;
+    if (nav[kBack]) {
+        g_page = 0;
+        g_row = kControlsRow;
+        return;
+    }
+    g_row = Wrap(g_row + nav[kDown] - nav[kUp], kCount);
+    const int step = nav[kRight] - nav[kLeft];
+    const int action = g_row - kList;
+    const bool on_list = action >= 0 && action < kActions;
+    if (on_list && step) col = action < kPadButtons ? Wrap(col + step, 2) : 0;
+    if (on_list && action >= kPadButtons) col = 0;  // direções dos analógicos: só no teclado
+    if (on_list && nav[kAccept]) StartCapture(col ? Capture::Pad : Capture::Key, action);
+
+    ImGuiIO& io = ImGui::GetIO();
+    const float em = ImGui::GetFontSize();
+    ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+    ImGui::SetNextWindowSize(ImVec2(em * 46, 0), ImGuiCond_Always);
+    ImGui::Begin(T("Teclado e controle###controles", "Keyboard and controller###controles"), nullptr,
+                 ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
+                     ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoNav);
+    bool save = false;
+    if (Row(0, T("Teclado como controle (jogador 1)", "Keyboard as controller (player 1)"),
+            g_keyboard ? T("Sim", "Yes") : T("Nao", "No"), step)) {
+        g_keyboard = !g_keyboard;
+        save = true;
+    }
+    const float w = ImGui::GetContentRegionAvail().x;
+    const float key_x = w * 0.47f, pad_x = w * 0.74f, cell = w * 0.25f;
+    ImGui::TextDisabled("%s", T("Acao no jogo", "Game action"));
+    ImGui::SameLine(key_x);
+    ImGui::TextDisabled("%s", T("Teclado", "Keyboard"));
+    ImGui::SameLine(pad_x);
+    ImGui::TextDisabled("%s", T("Botao do controle", "Controller button"));
+    // a lista rola: 24 ações não cabem numa tela de 720p
+    ImGui::BeginChild("acoes", ImVec2(0, std::min(io.DisplaySize.y * 0.5f, ImGui::GetFrameHeightWithSpacing() * kActions)));
+    const Capture capturing = Capturing();
+    for (int a = 0; a < kActions; a++) {
+        ImGui::PushID(a);
+        const bool sel = g_row == kList + a;
+        const ImVec2 p = ImGui::GetCursorScreenPos();
+        if (sel) {
+            ImGui::GetWindowDrawList()->AddRectFilled(p, ImVec2(p.x + w, p.y + ImGui::GetFrameHeight()), IM_COL32(110, 30, 25, 160));
+            if (shown != g_row) ImGui::SetScrollHereY(0.5f);
+        }
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextUnformatted(ActionLabel(a));
+        auto cell_button = [&](int c, float x, const std::string& text, bool enabled) {
+            ImGui::SameLine(x);
+            const bool hot = sel && col == c && enabled;
+            if (hot) ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(170, 40, 30, 230));
+            const bool waiting = sel && col == c && capturing == (c ? Capture::Pad : Capture::Key);
+            const std::string label = waiting ? std::string(c ? T("aperte um botao...", "press a button...")
+                                                               : T("aperte uma tecla...", "press a key..."))
+                                              : text;
+            if (ImGui::Button((label + (c ? "##p" : "##k")).c_str(), ImVec2(cell, 0)) && enabled) {
+                g_row = kList + a;
+                col = c;
+                StartCapture(c ? Capture::Pad : Capture::Key, a);
+            }
+            if (hot) ImGui::PopStyleColor();
+        };
+        cell_button(0, key_x, KeyLabel(a), true);
+        cell_button(1, pad_x, a < kPadButtons ? PadLabel(a) : "-", a < kPadButtons);
+        ImGui::PopID();
+    }
+    shown = g_row;
+    ImGui::EndChild();
+    if (Row(kReset, T("Restaurar o padrao", "Restore defaults"), T("A restaura", "A restores"), 0) ||
+        (g_row == kReset && nav[kAccept])) {
+        ResetControls();
+    }
+    ImGui::Separator();
+    const bool back_sel = g_row == kBackRow;
+    if (back_sel) ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(170, 40, 30, 230));
+    if (ImGui::Button(T("Voltar", "Back"), ImVec2(-1, 0)) || (back_sel && nav[kAccept])) {
+        g_page = 0;
+        g_row = kControlsRow;
+    }
+    if (back_sel) ImGui::PopStyleColor();
+    ImGui::TextWrapped("%s", capturing == Capture::None
+                                 ? T("A ou Enter: trocar. Esquerda/direita: teclado ou controle. Uma tecla ou botao faz "
+                                     "uma acao so: se ja era de outra, as duas trocam. Padrao: WASD anda, J soco, "
+                                     "K chute, L agarra, U/O gatilhos.",
+                                     "A or Enter: change. Left/right: keyboard or controller. Each key or button does one "
+                                     "action: if another had it, they swap. Defaults: WASD moves, J punch, K kick, "
+                                     "L grab, U/O triggers.")
+                                 : T("Esperando... Esc cancela a tecla.", "Waiting... Esc cancels the key."));
+    ImGui::End();
+    if (TakeChanged()) save = true;
+    if (save) app::Save();
+}
+
 void DrawPanel() {
     int nav[kNavCount];
     {
@@ -152,8 +252,13 @@ void DrawPanel() {
         std::copy(std::begin(g_nav), std::end(g_nav), nav);
         std::fill(std::begin(g_nav), std::end(g_nav), 0);
     }
-    if (g_name_edit) {  // o controle não navega enquanto o teclado do PC digita o nome
+    // o controle não navega enquanto o teclado do PC digita o nome ou enquanto se espera a tecla/botão novo
+    if (g_name_edit || CaptureBusy()) {
         nav[kUp] = nav[kDown] = nav[kLeft] = nav[kRight] = nav[kBack] = nav[kAccept] = 0;
+    }
+    if (g_page == 1) {
+        DrawControls(nav);
+        return;
     }
     g_row = Wrap(g_row + nav[kDown] - nav[kUp], kRows);
     const int step = nav[kRight] - nav[kLeft];
@@ -338,6 +443,11 @@ void DrawPanel() {
     if (g_row == 15)
         ImGui::TextDisabled("%s", T("Gere o pacote HD no instalador, usando a sua ISO.",
                               "Generate the HD pack in setup from your own ISO."));
+    Row(kControlsRow, T("Teclado e controle", "Keyboard and controller"), T("A configura", "A configures"), 0);
+    if (g_row == kControlsRow && nav[kAccept]) {
+        g_page = 1;
+        g_row = 1;
+    }
     ImGui::Separator();
     // Fechar: selecionado vira vermelho; A/Enter ou clique fecha
     const bool sel = g_row == kRows - 1;
@@ -425,7 +535,9 @@ void ToggleMenu() {
     if (open) {
         std::lock_guard<std::mutex> lock(g_nav_lock);
         std::fill(std::begin(g_nav), std::end(g_nav), 0);
+        g_page = 0;
     }
+    CancelCapture();
     g_open.store(open, std::memory_order_relaxed);
 }
 
@@ -490,10 +602,15 @@ void DrawUi(double fps) {
     if (MenuOpen()) DrawPanel();
 }
 
-bool Message(void*, uint32_t msg, uintptr_t wp, intptr_t, intptr_t* result) {
+bool Message(void*, uint32_t msg, uintptr_t wp, intptr_t lp, intptr_t* result) {
     // F10 é a tecla de menu do Windows (chega como WM_SYSKEYDOWN); sem tratar, a janela entra no modo de menu
     if ((msg == WM_SYSKEYDOWN || msg == WM_SYSKEYUP || msg == WM_KEYDOWN) && wp == VK_F10) {
         if (msg != WM_SYSKEYUP) ToggleMenu();
+        *result = 0;
+        return true;
+    }
+    // teclado como controle: guarda as teclas apertadas; na tela de controles, a tecla nova é da captura
+    if (KeyMessage(msg, wp, lp)) {
         *result = 0;
         return true;
     }
