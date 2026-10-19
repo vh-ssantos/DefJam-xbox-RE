@@ -26,6 +26,12 @@ function T([string]$pt, [string]$en) { if ($Pt) { $pt } else { $en } }
 $LogDir = Join-Path $Root 'logs'
 New-Item -ItemType Directory -Force $LogDir | Out-Null
 $LogFile = Join-Path $LogDir ("instalacao-{0:yyyyMMdd-HHmmss}.log" -f (Get-Date))
+# Um só arquivo aberto, que outros podem ler (Bloco de Notas, antivírus). Add-Content a cada linha
+# reabria o arquivo e, com alguém lendo, dava "O fluxo não era legível" e derrubava a instalação.
+$LogStream = New-Object IO.FileStream($LogFile, 'Append', 'Write', 'ReadWrite')
+$LogWriter = New-Object IO.StreamWriter($LogStream, (New-Object Text.UTF8Encoding($true)))
+$LogWriter.AutoFlush = $true
+function LogFileLine([string]$s) { try { $LogWriter.WriteLine($s) } catch {} }
 
 # --- ajudantes em C#: ler a .iso e rodar processos sem travar a janela
 Add-Type -TypeDefinition @'
@@ -186,7 +192,7 @@ $logs.Text = T 'Abrir registro' 'Open log'
 $form.Controls.Add($logs)
 
 function Log([string]$s) {
-    Add-Content -Path $LogFile -Value $s -Encoding UTF8
+    LogFileLine $s
     $logBox.AppendText($s + "`r`n")
 }
 function Status([string]$s) { $status.Text = $s; Log "== $s"; [Windows.Forms.Application]::DoEvents() }
@@ -344,11 +350,12 @@ cmake --build out\build\release || exit /b 1
     $start = Get-Date
     while (-not $r.P.HasExited -or $r.Lines.Count) {
         while ($r.Lines.TryDequeue([ref]$line)) {
-            Add-Content -Path $LogFile -Value $line -Encoding UTF8
+            LogFileLine $line
             if ($line -match '^\[(\d+)/(\d+)\]') {
                 $bar.Value = [Math]::Min(1000, [int](1000 * [int]$Matches[1] / [int]$Matches[2]))
                 $status.Text = (T 'Compilando' 'Building') + " $($Matches[1])/$($Matches[2]) - " + ('{0:hh\:mm\:ss}' -f ((Get-Date) - $start))
-            } elseif ($line -match 'error|FAILED|configurando|compilando|warning: unused' -and $line -notmatch '^\s*$') {
+            # Testes opcionais do CMake podem dizer "Failed"; o registro completo preserva essas linhas.
+            } elseif ($line -notmatch '^-- ' -and $line -match 'error|FAILED|configurando|compilando|warning: unused' -and $line -notmatch '^\s*$') {
                 $logBox.AppendText($line + "`r`n")
             }
         }
@@ -382,15 +389,17 @@ function Step-HdTextures {
     $start = Get-Date
     $line = $null
     function Read-HdProgress([string]$line) {
-        Add-Content -Path $LogFile -Value $line -Encoding UTF8
         if ($line -match '^progress\s+(\d+)\s+(\d+)') {
             $done = [long]$Matches[1]; $total = [long]$Matches[2]
+            # Uma linha de progresso a cada 256 basta no registro (são ~19 mil).
+            if (($done % 256) -eq 0 -or $done -eq $total) { LogFileLine $line }
             $bar.Style = 'Continuous'
             if ($total -gt 0) { $bar.Value = [Math]::Min(1000, [int](1000.0 * $done / $total)) }
             $status.Text = (T 'Texturas HD' 'HD textures') + " $done/$total - " + ('{0:hh\:mm\:ss}' -f ((Get-Date) - $start))
             # A retomada pode enfileirar milhares de linhas: continue pintando a janela durante a drenagem.
             if (($done % 32) -eq 0) { [Windows.Forms.Application]::DoEvents() }
         } elseif ($line -notmatch '^\s*$') {
+            LogFileLine $line
             $logBox.AppendText($line + "`r`n")
         }
     }
