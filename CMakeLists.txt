@@ -58,6 +58,6 @@ if(DEFJAM_EMBED_ICON AND DEFJAM_NODE AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/asse
 endif()
 
 # (DefJam) versao do port (tag do GitHub Releases) e o que a atualizacao automatica usa
-set(DEFJAM_VERSION "0.1.0")
+set(DEFJAM_VERSION "0.1.1")
 target_compile_definitions(DefJamFFNY PRIVATE DEFJAM_VERSION="${DEFJAM_VERSION}")
 target_link_libraries(DefJamFFNY PRIVATE winhttp)

@@ -5,6 +5,8 @@ código do jogo foi recompilado para rodar direto no PC, com imagem em Direct3D 
 
 Feito com o [XboxXBE-Recomp](https://github.com/TGP482/XboxXBE-Recomp) (TGP482), a mesma ferramenta do port do BLACK.
 
+> **English speakers:** the port and its menus switch to English automatically on a non-Portuguese Windows (or pick it in the in-game F10 menu). Quick start: download the zip from Releases, put your own Xbox (USA) .iso in the `assets` folder (or open the exe and pick the .iso), and play.
+
 > [!IMPORTANT]
 > **Este projeto não contém o jogo.** Não há ISO, arquivos de dados, músicas, vídeos, artes nem código original do
 > jogo para baixar aqui. Você precisa da **sua própria cópia** do Def Jam: Fight for NY de **Xbox, versão
@@ -35,7 +37,7 @@ Este port é **100% gratuito** e só é distribuído **aqui**:
 - **60 quadros por segundo** cravados.
 - **Oclusão de ambiente** (SSAO / GTAO): sombras de contato que dão profundidade à cena.
 - **Filtro anisotrópico** até 16x.
-- **Menu de opções do PC** dentro do jogo: **F10** no teclado ou **BACK + START** no controle.
+- **Menu de opções do PC** dentro do jogo: **F10** no teclado ou **BACK + START** no controle, em **português ou inglês** (automático pelo idioma do Windows).
 - **Cheats do próprio jogo** com um clique: pontos de recompensa e músicas extras.
 - **Nome do User ID digitado no teclado do PC.**
 - **Pular os vídeos de abertura** e **pausar no Alt+Tab** (em tela cheia; em janela o jogo continua rodando).
@@ -85,8 +87,10 @@ Teclado e mouse (mapeamento completo) ficam para uma próxima versão.
 
 | Opção | O que faz |
 |---|---|
+| Idioma / Language | Automático (pelo Windows), Português ou English |
 | Modo de tela | Tela cheia, tela cheia sem bordas ou janela |
 | Resolução | Todas as que o seu monitor aceita |
+| Proporção | 16:9 (widescreen do jogo: luta mais aberta, mas menus e placar 2D esticados) ou 4:3 original (nada esticado, com faixas pretas). Vale ao reiniciar |
 | Escala de renderização | 50% a 300%. Acima de 100% é supersampling (imagem mais limpa) |
 | Filtro anisotrópico | Texturas nítidas de longe |
 | V-Sync | Sincronia vertical |
@@ -94,7 +98,7 @@ Teclado e mouse (mapeamento completo) ficam para uma próxima versão.
 | Mostrar FPS | Contador no canto da tela |
 | Pular vídeos de abertura | Vai direto para a tela de título |
 | Pausar sem foco (tela cheia) | Pausa o jogo e o som no Alt+Tab; em janela, o jogo segue rodando |
-| Desbloquear | Os cheats do jogo: escolha com esquerda/direita e aperte A. Cada um vale uma vez por save |
+| Desbloquear (Unlock) | Os cheats do jogo: escolha com esquerda/direita e aperte A. Cada um vale uma vez por save |
 | Nome do próximo User ID | Digite no teclado do PC; na tela do jogo, digite uma letra qualquer e DONE |
 | Pasta de saves | Abre no Explorer |
 | Versão | Mostra a versão e atualiza quando houver uma nova |

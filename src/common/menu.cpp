@@ -168,7 +168,7 @@ void DrawPanel() {
     ImGuiIO& io = ImGui::GetIO();
     const float em = ImGui::GetFontSize();
     ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-    ImGui::SetNextWindowSize(ImVec2(em * 36, 0), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(em * 42, 0), ImGuiCond_Always);
     ImGui::Begin(T("Def Jam: Fight for NY - Opcoes do PC###opcoes", "Def Jam: Fight for NY - PC Options###opcoes"), nullptr,
                  ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
                      ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoNav);
