@@ -34,7 +34,7 @@
 
 namespace defjam {
 
-bool g_skip_intros = true;
+uint32_t g_skip_videos = 1;
 bool g_pause_unfocused = true;
 
 namespace {
@@ -245,11 +245,12 @@ void DrawPanel() {
         save = true;
     }
     if (Row(8, T("Mostrar FPS", "Show FPS"), g_show_fps ? yes : no, step)) g_show_fps = !g_show_fps;
-    if (Row(9, T("Pular videos de abertura", "Skip intro videos"), g_skip_intros ? yes : no, step)) {
-        g_skip_intros = !g_skip_intros;
+    const char* skip[] = {T("Nao", "No"), T("So os logos (EA, THX)", "Logos only (EA, THX)"), T("Logos e filme", "Logos and movie")};
+    if (int st = Row(9, T("Pular videos de abertura", "Skip intro videos"), skip[g_skip_videos % 3], step)) {
+        g_skip_videos = uint32_t(Wrap(int(g_skip_videos) + st, 3));
         save = true;
     }
-    if (Row(10, T("Pausar sem foco (tela cheia)", "Pause when unfocused (fullscreen)"), g_pause_unfocused ? yes : no, step)) {
+    if (Row(10, T("Pausar sem foco (so tela cheia)", "Pause when unfocused (fullscreen only)"), g_pause_unfocused ? yes : no, step)) {
         g_pause_unfocused = !g_pause_unfocused;
         save = true;
     }
@@ -381,8 +382,8 @@ int64_t NowMs() {
 }
 }  // namespace
 
-void IntroMovieStarted() {
-    if (g_skip_intros) g_skip_at = NowMs() + 500;
+void IntroMovieStarted(bool logo) {
+    if (g_skip_videos == 2 || (g_skip_videos == 1 && logo)) g_skip_at = NowMs() + 500;
 }
 
 bool SkipIntroPress() {
@@ -403,8 +404,8 @@ void WaitWhileUnfocused() {
     auto unfocused = [] {
         return g_hwnd && IsWindowVisible(g_hwnd) && (GetForegroundWindow() != g_hwnd || IsIconic(g_hwnd));
     };
-    // em janela o jogo segue rodando (como nos jogos de PC); pausa só em tela cheia / sem bordas
-    auto windowed = [] { return app::Get().display_mode == app::DisplayMode::Windowed; };
+    // em janela e em sem bordas o jogo segue rodando (como nos jogos de PC); pausa só na tela cheia exclusiva
+    auto windowed = [] { return app::Get().display_mode != app::DisplayMode::Fullscreen; };
     if (tests || !g_pause_unfocused || windowed() || !unfocused()) return;
     audio::g_paused = true;
     while (g_pause_unfocused && !windowed() && unfocused()) Sleep(20);

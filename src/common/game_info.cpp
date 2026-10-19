@@ -215,7 +215,7 @@ const app::GameInfo app::kGame = {
     .options = {{"ambient_occlusion", nullptr, &defjam::g_ao_mode},
                 {"language", nullptr, &defjam::g_language},
                 {"aspect_4x3", nullptr, &app::g_force_4x3},
-                {"skip_intros", &defjam::g_skip_intros, nullptr},
+                {"skip_videos", nullptr, &defjam::g_skip_videos},
                 {"pause_on_focus_loss", &defjam::g_pause_unfocused, nullptr},
                 {"discord", &defjam::g_discord, nullptr},
                 {"check_updates", &defjam::g_check_updates, nullptr}},

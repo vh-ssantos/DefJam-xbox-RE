@@ -202,7 +202,8 @@ X86_FUNC(sub_00216410) {
 X86_EXTERN_FUNC(__imp__sub_0001E460);
 X86_FUNC(sub_0001E460) {
     const std::string name = ::kernel::ReadCString(::kernel::R32(ctx.esp + 4), 64);
-    if (name == "movies/eagames" || name == "movies/thx" || name == "movies/intro") defjam::IntroMovieStarted();
+    if (name == "movies/eagames" || name == "movies/thx") defjam::IntroMovieStarted(true);
+    else if (name == "movies/intro") defjam::IntroMovieStarted(false);
     __imp__sub_0001E460(ctx, base);
 }
 

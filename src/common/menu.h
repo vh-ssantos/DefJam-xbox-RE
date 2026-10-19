@@ -10,12 +10,12 @@ struct Pad;
 namespace defjam {
 
 // opções do port salvas no settings.toml (skip_intros, pause_on_focus_loss)
-extern bool g_skip_intros;
+extern uint32_t g_skip_videos;  // 0 nenhum, 1 só os logos (EA, THX), 2 logos e o filme de abertura
 extern bool g_pause_unfocused;
 
 bool MenuOpen();
-// um vídeo da abertura começou: com g_skip_intros, PadHook aperta START logo depois
-void IntroMovieStarted();
+// um vídeo da abertura começou (logo = EA ou THX): conforme g_skip_videos, PadHook aperta START logo depois
+void IntroMovieStarted(bool logo);
 bool SkipIntroPress();  // START automático agora?
 // cheats do jogo: o menu enfileira um código; a thread do jogo o aplica (game/hooks.cpp) e devolve a resposta
 bool TakeCheatRequest(std::string& code);

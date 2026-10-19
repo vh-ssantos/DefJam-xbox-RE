@@ -5,6 +5,7 @@
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
+#include <cstdlib>
 #include <windows.h>
 #include <xaudio2.h>
 
@@ -44,6 +45,10 @@ void StartOutput(std::function<void(float*, uint32_t)> render) {
                 Sleep(2);
                 continue;
             }
+            // (DefJam) fila vazia = o som parou por um instante (estalo); contado com DEFJAM_DSTRACE
+            static const bool trace = std::getenv("DEFJAM_DSTRACE") != nullptr;
+            static uint32_t starved = 0;
+            if (trace && n > 10 && st.BuffersQueued == 0 && ++starved % 1 == 0) LOGI("audio: fila vazia (%u vezes)", starved);
             float* b = &bufs[(n % kSlots) * kFrames * 2];
             render(b, kFrames);
             XAUDIO2_BUFFER xb{};

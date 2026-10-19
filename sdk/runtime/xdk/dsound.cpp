@@ -272,6 +272,28 @@ void Render(float* out, uint32_t frames) {
         // central, LFE e traseiros eram descartados (sumiam falas e golpes). Downmix ITU para estéreo.
         const bool wide = v.channels > 2;
         const float wide_gain = std::max(g[0][0], g[1][1]);
+        // (DefJam) DEFJAM_DSTRACE: no buffer circular 5.1 do mixer da EA, o trecho que vamos tocar é igual ao da volta
+        // anterior? (o jogo ainda não reescreveu: tocamos áudio velho -> chiado)
+        static const bool stale_trace = std::getenv("DEFJAM_DSTRACE") != nullptr;
+        if (stale_trace && wide && !v.stream && v.looping && v.play_len) {
+            static std::vector<uint8_t> last;
+            static uint64_t chunks = 0, stale = 0;
+            if (last.size() != v.play_len) last.assign(v.play_len, 0);
+            const uint32_t from = BytesOf(v, uint32_t(v.pos)) % v.play_len;
+            const uint32_t len = std::min<uint32_t>(BytesOf(v, frames), v.play_len);
+            uint32_t unchanged = 0;
+            bool silent = true;
+            for (uint32_t i = 0; i < len; i++) {
+                const uint32_t o = (from + i) % v.play_len;
+                const uint8_t now = G<uint8_t>(base + o);
+                unchanged += now == last[o] && now != 0;
+                silent &= now == 0;
+                last[o] = now;
+            }
+            chunks++;
+            stale += !silent && unchanged * 4 > len;
+            if (chunks % 500 == 0) LOGI("ds 5.1: %llu de %llu trechos com mais de 25%% de audio velho", (unsigned long long)stale, (unsigned long long)chunks);
+        }
         auto extra = [&](uint32_t data, uint32_t fr, float& l, float& r) {
             const float c = Sample(v, data, fr, 2);
             const float lfe = v.channels > 3 ? Sample(v, data, fr, 3) : 0.0f;
@@ -357,7 +379,31 @@ void Render(float* out, uint32_t frames) {
             v.pos += step;
         }
     }
-    for (uint32_t i = 0; i < frames * 2; i++) out[i] = std::clamp(out[i], -1.0f, 1.0f);
+    // (DefJam) DEFJAM_DSTRACE: quantas amostras passariam do máximo (cada uma é um estalo/chiado se cortada)
+    static const bool trace = std::getenv("DEFJAM_DSTRACE") != nullptr;
+    if (trace) {
+        static uint64_t total = 0, over = 0, jumps = 0;
+        static float peak = 0, prev[2] = {0, 0};
+        for (uint32_t i = 0; i < frames * 2; i++) {
+            const float m = std::fabs(out[i]);
+            jumps += std::fabs(out[i] - prev[i & 1]) > 0.35f;  // degrau grande entre amostras vizinhas = estalo
+            prev[i & 1] = out[i];
+            peak = std::max(peak, m);
+            over += m > 1.0f;
+        }
+        total += frames * 2;
+        if (total >= uint64_t(audio::kRate) * 2 * 5) {
+            LOGI("ds saida: pico %.2f, %llu de %llu amostras acima de 1.0, %llu saltos", peak, (unsigned long long)over,
+                 (unsigned long long)total, (unsigned long long)jumps);
+            total = over = jumps = 0;
+            peak = 0;
+        }
+    }
+    // (DefJam) limitador suave: até 0.9 passa igual; acima, a curva tende a 1.0 sem o corte seco (que estala/chia)
+    for (uint32_t i = 0; i < frames * 2; i++) {
+        const float x = out[i], m = std::fabs(x);
+        if (m > 0.9f) out[i] = std::copysign(0.9f + 0.1f * std::tanh((m - 0.9f) / 0.1f), x);
+    }
 }
 
 int64_t NowMs() {
