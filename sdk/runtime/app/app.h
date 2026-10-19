@@ -39,6 +39,8 @@ Mode Output();
 float RenderScale(uint32_t guest_height);
 // the output is 3:2 or wider: the console reports a widescreen TV and the frame is shown 16:9, else 4:3 as on a 4:3 TV
 bool Widescreen();
+// (DefJam) 1: a imagem sai em 4:3 como numa TV 4:3 (nada esticado, faixas pretas); vale por completo ao reiniciar
+inline uint32_t g_force_4x3 = 0;
 
 std::filesystem::path ExeDir();
 // the game in assets (game_files.cpp): its folder and this executable's xbe, from the extracted files or a disc

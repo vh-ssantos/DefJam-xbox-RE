@@ -21,6 +21,7 @@
 #include <thread>
 
 #include "app/app.h"
+#include "common/lang.h"
 #include "common/update.h"
 #include "core/log.h"
 
@@ -124,7 +125,7 @@ void SetStatus(const std::string& s) {
 
 void Install(std::string url) {
     namespace fs = std::filesystem;
-    SetStatus("Baixando...");
+    SetStatus(T("Baixando...", "Downloading..."));
     // https://github.com/... -> host e caminho
     const size_t p = url.find("://");
     const size_t slash = url.find('/', p + 3);
@@ -133,7 +134,7 @@ void Install(std::string url) {
     std::string zip;
     // o GitHub redireciona para objects.githubusercontent.com; WinHTTP segue sozinho
     if (!HttpGet(host, path, zip) || zip.size() < 1024) {
-        SetStatus("Falhou o download. Tente de novo mais tarde.");
+        SetStatus(T("Falhou o download. Tente de novo mais tarde.", "Download failed. Try again later."));
         g_busy = false;
         return;
     }
@@ -160,9 +161,9 @@ void Install(std::string url) {
     fs::remove(tmp, ec);
     if (!ok) {
         fs::rename(old, exe, ec);  // volta como estava
-        SetStatus("Falhou ao instalar. O jogo continua na versao atual.");
+        SetStatus(T("Falhou ao instalar. O jogo continua na versao atual.", "Install failed. The game stays on this version."));
     } else {
-        SetStatus("Pronto! Feche e abra o jogo para usar a versao nova.");
+        SetStatus(T("Pronto! Feche e abra o jogo para usar a versao nova.", "Done! Close and reopen the game to use the new version."));
     }
     g_busy = false;
 }

@@ -20,6 +20,7 @@
 #include "kernel/memory.h"
 #include "xdk/hle.h"
 #include "common/discord.h"
+#include "common/lang.h"
 #include "common/menu.h"
 
 #include <string>
@@ -280,7 +281,8 @@ void ApplyPendingCheat() {
     if (!TakeCheatRequest(code)) return;
     const uint32_t obj = g_cheat_obj;
     if (!obj) {
-        CheatResult("O jogo ainda nao criou a tela de cheats: entre em EXTRAS uma vez e tente de novo.");
+        CheatResult(T("O jogo ainda nao criou a tela de cheats: entre em EXTRAS uma vez e tente de novo.",
+                      "The game has not set up its cheat screen yet: open EXTRAS once and try again."));
         return;
     }
     static uint32_t buf = 0;
@@ -305,11 +307,12 @@ void ApplyPendingCheat() {
     };
     const std::string type = field("TYPE");
     std::string shown;
-    if (type == "1") shown = "Musica liberada: " + field("ARTIST") + " - " + field("TRACKNAME") + " (toca no jogo e no Beat Box)";
-    else if (type == "2") shown = "+" + field("VALUE") + " pontos de recompensa (use em Unlock Rewards)";
-    else if (type == "4") shown = "Esse codigo ja foi usado neste save (cada um vale uma vez)";
-    else if (text.empty()) shown = "(sem resposta)";
-    else shown = "Resposta do jogo: " + text;
+    if (type == "1") shown = std::string(defjam::T("Musica liberada: ", "Song unlocked: ")) + field("ARTIST") + " - " + field("TRACKNAME") +
+                 defjam::T(" (toca no jogo e no Beat Box)", " (plays in game and in Beat Box)");
+    else if (type == "2") shown = "+" + field("VALUE") + defjam::T(" pontos de recompensa (use em Unlock Rewards)", " reward points (spend them in Unlock Rewards)");
+    else if (type == "4") shown = defjam::T("Esse codigo ja foi usado neste save (cada um vale uma vez)", "This code was already used on this save (each works once)");
+    else if (text.empty()) shown = defjam::T("(sem resposta)", "(no answer)");
+    else shown = std::string(defjam::T("Resposta do jogo: ", "Game answer: ")) + text;
     CheatResult(shown);
 }
 }  // namespace defjam

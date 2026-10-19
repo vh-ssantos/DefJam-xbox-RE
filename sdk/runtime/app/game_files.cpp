@@ -64,19 +64,24 @@ bool ReadHostFile(const fs::path& path, std::vector<uint8_t>& out) {
 // (DefJam) sem o jogo: oferece escolher a imagem do disco (.iso) e a copia para assets ao lado do exe, com a janela de
 // progresso do próprio Windows. Devolve true se copiou (FindGame procura de novo).
 bool PickIso() {
-    if (MessageBoxW(nullptr,
-                    L"Nao encontrei o jogo.\n\nQuer escolher agora a imagem do disco (.iso) do seu Def Jam: Fight for "
-                    L"NY de Xbox? Ela sera copiada para a pasta 'assets', ao lado do jogo.\n\n(Ou coloque a .iso na "
-                    L"pasta 'assets' voce mesmo e abra o jogo de novo.)",
-                    kGame.short_title, MB_ICONQUESTION | MB_YESNO) != IDYES)
+    const bool pt = PRIMARYLANGID(GetUserDefaultUILanguage()) == LANG_PORTUGUESE;
+    const wchar_t* ask =
+        pt ? L"Nao encontrei o jogo.\n\nQuer escolher agora a imagem do disco (.iso) do seu Def Jam: Fight for NY de "
+             L"Xbox? Ela sera copiada para a pasta 'assets', ao lado do jogo.\n\n(Ou coloque a .iso na pasta 'assets' "
+             L"voce mesmo e abra o jogo de novo.)"
+           : L"The game was not found.\n\nDo you want to pick your Def Jam: Fight for NY (Xbox) disc image (.iso) now? "
+             L"It will be copied to the 'assets' folder next to the game.\n\n(Or put the .iso in the 'assets' folder "
+             L"yourself and open the game again.)";
+    if (MessageBoxW(nullptr, ask, kGame.short_title, MB_ICONQUESTION | MB_YESNO) != IDYES)
         return false;
     wchar_t file[MAX_PATH] = {};
     OPENFILENAMEW of{};
     of.lStructSize = sizeof(of);
-    of.lpstrFilter = L"Imagem do disco (*.iso)\0*.iso\0Todos os arquivos\0*.*\0";
+    of.lpstrFilter = pt ? L"Imagem do disco (*.iso)\0*.iso\0Todos os arquivos\0*.*\0"
+                        : L"Disc image (*.iso)\0*.iso\0All files\0*.*\0";
     of.lpstrFile = file;
     of.nMaxFile = MAX_PATH;
-    of.lpstrTitle = L"Escolha a .iso do Def Jam: Fight for NY (Xbox)";
+    of.lpstrTitle = pt ? L"Escolha a .iso do Def Jam: Fight for NY (Xbox)" : L"Pick the Def Jam: Fight for NY (Xbox) .iso";
     of.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
     if (!GetOpenFileNameW(&of)) return false;
     fs::path dir = ExeDir() / "assets";

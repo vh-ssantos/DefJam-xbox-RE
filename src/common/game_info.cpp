@@ -18,6 +18,7 @@
 #include "common/menu.h"
 #include "common/discord.h"
 #include "common/icon.h"
+#include "common/lang.h"
 #include "common/update.h"
 #include "common/occlusion.h"
 #include "gpu/backend.h"
@@ -208,9 +209,12 @@ const app::GameInfo app::kGame = {
     // os testes automáticos (DEFJAM_WINDOW_MONITOR) usam um arquivo próprio, em janela, sem mexer no do jogador
     .settings = std::getenv("DEFJAM_WINDOW_MONITOR") ? "settings-teste.toml" : "settings.toml",
     .splash = L"splash",
-    .missing = L"Coloque o jogo na pasta assets: a imagem do disco (.iso) ou o default.xbe com as pastas ao lado.",
+    .missing = L"Coloque o jogo na pasta assets: a imagem do disco (.iso) ou o default.xbe com as pastas ao lado.\n\n"
+               L"Put the game in the assets folder: the disc image (.iso), or default.xbe with its folders.",
     .images = {{"default.xbe", "DefJamFFNY"}},
     .options = {{"ambient_occlusion", nullptr, &defjam::g_ao_mode},
+                {"language", nullptr, &defjam::g_language},
+                {"aspect_4x3", nullptr, &app::g_force_4x3},
                 {"skip_intros", &defjam::g_skip_intros, nullptr},
                 {"pause_on_focus_loss", &defjam::g_pause_unfocused, nullptr},
                 {"discord", &defjam::g_discord, nullptr},

@@ -26,6 +26,7 @@
 
 #include "app/app.h"
 #include "common/menu.h"
+#include "common/lang.h"
 #include "common/occlusion.h"
 #include "common/update.h"
 #include "audio/audio.h"
@@ -78,7 +79,7 @@ const std::vector<Res>& Resolutions() {
 std::string ResText(const Res& r) {
     if (!r.w) {
         app::Mode d = app::Desktop();
-        return "Do monitor (" + std::to_string(d.width) + "x" + std::to_string(d.height) + ")";
+        return std::string(T("Do monitor (", "Desktop (")) + std::to_string(d.width) + "x" + std::to_string(d.height) + ")";
     }
     const char* aspect = r.w * 9 == r.h * 16 ? "  16:9" : r.w * 3 == r.h * 4 ? "  4:3" : r.w * 10 == r.h * 16 ? "  16:10" : "";
     return std::to_string(r.w) + "x" + std::to_string(r.h) + aspect;
@@ -92,27 +93,25 @@ int IndexOf(const std::vector<T>& v, const T& x) {
 }
 int Wrap(int i, int n) { return (i % n + n) % n; }
 
-constexpr int kRows = 14;  // 13 opções + Fechar
+constexpr int kRows = 16;  // 15 opções + Fechar
 char g_name[16] = {};  // nome do próximo User ID, digitado no teclado do PC
 bool g_name_edit = false;
 
-// os códigos da tela Extras -> Cheats (lista pública do jogo)
+// os códigos da tela Extras -> Cheats (lista pública do jogo); what vazio = +100 pontos de recompensa
 struct Cheat {
     const char* code;
     const char* what;
 };
 const Cheat kCheats[] = {
-    {"GETSTUFF", "+100 pontos"},   {"DUCKETS", "+100 pontos"},
-    {"CROOKLYN", "+100 pontos"},   {"THESOURCE", "+100 pontos"},
-    {"NEWJACK", "+100 pontos"},    {"LOYALTY", "Musica: Nene - Afterhours"},
-    {"MILITAIN", "Musica: CNN - Anything Goes"}, {"BIGBOI", "Musica: Outkast - Bust"},
-    {"CHOPPER", "Musica: Baxter - Chopshop"},    {"CHOCOCITY", "Musica: Comp - Comp"},
-    {"AKIRA", "Musica: Chiang - Dragon House"},  {"PLATINUMB", "Musica: Bless - Get it Now"},
-    {"GHOSTSHELL", "Musica: Chiang - Koto"},     {"GONBETRUBL", "Musica: Ricbyobiche - Lil Bro"},
-    {"KIRKJONES", "Musica: Sticky Fingaz - Man Up"}, {"RESPECT", "Musica: Public Enemy - Move"},
-    {"POWER", "Musica: Ice T - Original Gangster"}, {"ULTRAMAG", "Musica: Ultramagnetic MCs - Poppa Large"},
-    {"SIEZE", "Musica: Bless - Sieze the Day"},  {"CARTAGENA", "Musica: Fat Joe - Take a Look at my Life"},
-    {"PUMP", "Musica: Joe Budden - Walk with Me"},
+    {"GETSTUFF", ""}, {"DUCKETS", ""}, {"CROOKLYN", ""}, {"THESOURCE", ""}, {"NEWJACK", ""},
+    {"LOYALTY", "Nene - Afterhours"},          {"MILITAIN", "CNN - Anything Goes"},
+    {"BIGBOI", "Outkast - Bust"},              {"CHOPPER", "Baxter - Chopshop"},
+    {"CHOCOCITY", "Comp - Comp"},              {"AKIRA", "Chiang - Dragon House"},
+    {"PLATINUMB", "Bless - Get it Now"},       {"GHOSTSHELL", "Chiang - Koto"},
+    {"GONBETRUBL", "Ricbyobiche - Lil Bro"},   {"KIRKJONES", "Sticky Fingaz - Man Up"},
+    {"RESPECT", "Public Enemy - Move"},        {"POWER", "Ice T - Original Gangster"},
+    {"ULTRAMAG", "Ultramagnetic MCs - Poppa Large"}, {"SIEZE", "Bless - Sieze the Day"},
+    {"CARTAGENA", "Fat Joe - Take a Look at my Life"}, {"PUMP", "Joe Budden - Walk with Me"},
 };
 constexpr int kCheatCount = int(sizeof(kCheats) / sizeof(kCheats[0]));
 int g_cheat = 0;
@@ -170,18 +169,28 @@ void DrawPanel() {
     const float em = ImGui::GetFontSize();
     ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
     ImGui::SetNextWindowSize(ImVec2(em * 36, 0), ImGuiCond_Always);
-    ImGui::Begin("Def Jam: Fight for NY - Opcoes do PC", nullptr,
+    ImGui::Begin(T("Def Jam: Fight for NY - Opcoes do PC###opcoes", "Def Jam: Fight for NY - PC Options###opcoes"), nullptr,
                  ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
                      ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoNav);
+    const char* yes = T("Sim", "Yes");
+    const char* no = T("Nao", "No");
+
+    // idioma dos textos do port
+    static const char* const kLangPt[] = {"Automatico (Windows)", "Portugues", "English"};
+    static const char* const kLangEn[] = {"Automatic (Windows)", "Portugues", "English"};
+    if (int st = Row(0, T("Idioma", "Language"), (Portuguese() ? kLangPt : kLangEn)[g_language % 3], step)) {
+        g_language = uint32_t(Wrap(int(g_language) + st, 3));
+        save = true;
+    }
 
     // modo de tela
-    static const char* kModes[] = {"Tela cheia", "Tela cheia sem bordas", "Janela"};
     static const app::DisplayMode kModeValues[] = {app::DisplayMode::Fullscreen, app::DisplayMode::Borderless,
                                                    app::DisplayMode::Windowed};
+    const char* modes[] = {T("Tela cheia", "Fullscreen"), T("Tela cheia sem bordas", "Borderless"), T("Janela", "Windowed")};
     int mode = 0;
     for (int i = 0; i < 3; i++)
         if (kModeValues[i] == s.display_mode) mode = i;
-    if (int st = Row(0, "Modo de tela", kModes[mode], step)) {
+    if (int st = Row(1, T("Modo de tela", "Display mode"), modes[mode], step)) {
         s.display_mode = kModeValues[Wrap(mode + st, 3)];
         display = save = true;
     }
@@ -191,19 +200,28 @@ void DrawPanel() {
     int ri = 0;
     for (size_t i = 0; i < res.size(); i++)
         if (res[i].w == s.width && res[i].h == s.height) ri = int(i);
-    if (int st = Row(1, "Resolucao", ResText(res[size_t(ri)]), step)) {
+    if (int st = Row(2, T("Resolucao", "Resolution"), ResText(res[size_t(ri)]), step)) {
         const Res& r = res[size_t(Wrap(ri + st, int(res.size())))];
         s.width = r.w;
         s.height = r.h;
         display = save = true;
     }
 
+    // proporção: 16:9 (o modo widescreen do jogo: 3D mais aberto, menus 2D esticados) ou 4:3 original
+    if (Row(3, T("Proporcao (reinicie)", "Aspect ratio (restart)"),
+            app::g_force_4x3 ? T("4:3 original, nada esticado", "4:3 original, no stretch")
+                             : T("16:9 widescreen", "16:9 widescreen"),
+            step)) {
+        app::g_force_4x3 = !app::g_force_4x3;
+        save = true;
+    }
+
     // escala de renderização: % da altura da saída
     static const std::vector<uint32_t> kScales = {50, 67, 75, 100, 125, 150, 175, 200, 250, 300};
     char scale[64];
     std::snprintf(scale, sizeof scale, "%u%%%s", s.render_percent,
-                  s.render_percent > 100 ? " (supersampling)" : s.render_percent < 100 ? " (mais leve)" : "");
-    if (int st = Row(2, "Escala de renderizacao", scale, step)) {
+                  s.render_percent > 100 ? " (supersampling)" : s.render_percent < 100 ? T(" (mais leve)", " (faster)") : "");
+    if (int st = Row(4, T("Escala de renderizacao", "Render scale"), scale, step)) {
         int i = IndexOf(kScales, s.render_percent);
         s.render_percent = kScales[size_t(std::clamp(i + st, 0, int(kScales.size()) - 1))];
         save = true;
@@ -211,63 +229,68 @@ void DrawPanel() {
 
     // filtro anisotrópico
     static const std::vector<uint32_t> kAniso = {0, 2, 4, 8, 16};
-    std::string aniso = s.aniso ? std::to_string(s.aniso) + "x" : std::string("Como o jogo pede");
-    if (int st = Row(3, "Filtro anisotropico", aniso, step)) {
+    std::string aniso = s.aniso ? std::to_string(s.aniso) + "x" : std::string(T("Como o jogo pede", "Game default"));
+    if (int st = Row(5, T("Filtro anisotropico", "Anisotropic filtering"), aniso, step)) {
         s.aniso = kAniso[size_t(Wrap(IndexOf(kAniso, s.aniso) + st, int(kAniso.size())))];
         save = true;
     }
 
-    if (Row(4, "V-Sync", s.vsync ? "Ligado" : "Desligado", step)) {
+    if (Row(6, "V-Sync", s.vsync ? T("Ligado", "On") : T("Desligado", "Off"), step)) {
         s.vsync = !s.vsync;
         save = true;
     }
-    static const char* kAo[] = {"Desligada", "SSAO", "GTAO (melhor)"};
-    if (int st = Row(5, "Oclusao de ambiente", kAo[g_ao_mode % 3], step)) {
+    const char* ao[] = {T("Desligada", "Off"), "SSAO", T("GTAO (melhor)", "GTAO (best)")};
+    if (int st = Row(7, T("Oclusao de ambiente", "Ambient occlusion"), ao[g_ao_mode % 3], step)) {
         g_ao_mode = uint32_t(Wrap(int(g_ao_mode) + st, 3));
         save = true;
     }
-    if (Row(6, "Mostrar FPS", g_show_fps ? "Sim" : "Nao", step)) g_show_fps = !g_show_fps;
-    if (Row(7, "Pular videos de abertura", g_skip_intros ? "Sim" : "Nao", step)) {
+    if (Row(8, T("Mostrar FPS", "Show FPS"), g_show_fps ? yes : no, step)) g_show_fps = !g_show_fps;
+    if (Row(9, T("Pular videos de abertura", "Skip intro videos"), g_skip_intros ? yes : no, step)) {
         g_skip_intros = !g_skip_intros;
         save = true;
     }
-    if (Row(8, "Pausar sem foco (tela cheia)", g_pause_unfocused ? "Sim" : "Nao", step)) {
+    if (Row(10, T("Pausar sem foco (tela cheia)", "Pause when unfocused (fullscreen)"), g_pause_unfocused ? yes : no, step)) {
         g_pause_unfocused = !g_pause_unfocused;
         save = true;
     }
 
     // cheat: esquerda/direita escolhem, A aplica (na thread do jogo)
     {
-        // mostra o que libera (o código fica na linha de baixo): os cheats do próprio jogo, de Extras -> Cheats
-        char label[96];
-        std::snprintf(label, sizeof label, "%d/%d  %s", g_cheat + 1, kCheatCount, kCheats[g_cheat].what);
-        if (int st = Row(9, "Desbloquear (A)", label, step)) {
+        const Cheat& c = kCheats[g_cheat];
+        char label[128];
+        if (c.what[0])
+            std::snprintf(label, sizeof label, "%d/%d  %s%s", g_cheat + 1, kCheatCount, T("Musica: ", "Song: "), c.what);
+        else
+            std::snprintf(label, sizeof label, "%d/%d  %s", g_cheat + 1, kCheatCount, T("+100 pontos", "+100 points"));
+        if (int st = Row(11, T("Desbloquear (A)", "Unlock (A)"), label, step)) {
             g_cheat = Wrap(g_cheat + st, kCheatCount);
             std::lock_guard<std::mutex> lock(g_cheat_lock);
             g_cheat_result.clear();
         }
-        if (g_row == 9 && nav[kAccept]) {
+        if (g_row == 11 && nav[kAccept]) {
             std::lock_guard<std::mutex> lock(g_cheat_lock);
-            g_cheat_request = kCheats[g_cheat].code;
-            g_cheat_result = "enviando...";
+            g_cheat_request = c.code;
+            g_cheat_result = T("enviando...", "sending...");
         }
         std::lock_guard<std::mutex> lock(g_cheat_lock);
-        if (g_row == 9 || !g_cheat_result.empty())
-            ImGui::TextWrapped("   %s", g_cheat_result.empty()
-                                         ? (std::string("Codigo ") + kCheats[g_cheat].code + " (cheat do jogo). A libera; cada um vale uma vez por save.").c_str()
-                                         : g_cheat_result.c_str());
+        if (g_row == 11 || !g_cheat_result.empty()) {
+            const std::string hint = std::string(T("Codigo ", "Code ")) + c.code +
+                                     T(" (cheat do jogo). A libera; cada um vale uma vez por save.",
+                                       " (the game's own cheat). A unlocks it; each works once per save.");
+            ImGui::TextWrapped("   %s", g_cheat_result.empty() ? hint.c_str() : g_cheat_result.c_str());
+        }
     }
     // nome do próximo User ID: A (ou Enter) neste item abre o campo; Enter fecha
     {
-        ImGui::PushID(10);
-        const bool sel = g_row == 10;
+        ImGui::PushID(12);
+        const bool sel = g_row == 12;
         const float w = ImGui::GetContentRegionAvail().x;
         if (sel) {
             const ImVec2 p = ImGui::GetCursorScreenPos();
             ImGui::GetWindowDrawList()->AddRectFilled(p, ImVec2(p.x + w, p.y + ImGui::GetFrameHeight()), IM_COL32(170, 40, 30, 200));
         }
         ImGui::AlignTextToFramePadding();
-        ImGui::TextUnformatted("Nome do proximo User ID");
+        ImGui::TextUnformatted(T("Nome do proximo User ID", "Next User ID name"));
         ImGui::SameLine(w * 0.45f);
         ImGui::SetNextItemWidth(w * 0.55f);
         if (sel && nav[kAccept] && !g_name_edit) {
@@ -283,10 +306,14 @@ void DrawPanel() {
         if (ImGui::IsItemActivated()) g_name_edit = true;
         if (ImGui::IsItemDeactivated()) g_name_edit = false;
         ImGui::PopID();
-        if (g_name[0]) ImGui::TextDisabled("Na tela do jogo, digite qualquer letra e DONE: o nome vira %s.", g_name);
+        if (g_name[0])
+            ImGui::TextDisabled(T("Na tela do jogo, digite qualquer letra e DONE: o nome vira %s.",
+                                  "On the game's screen, type any letter and DONE: the name becomes %s."),
+                                g_name);
     }
     // abre a pasta dos saves (o HD do port; DEFJAM_HDD nos testes) no Explorer
-    if (Row(11, "Pasta de saves", "A abre no Explorer", 0) || (g_row == 11 && nav[kAccept])) {
+    if (Row(13, T("Pasta de saves", "Save folder"), T("A abre no Explorer", "A opens it in Explorer"), 0) ||
+        (g_row == 13 && nav[kAccept])) {
         const wchar_t* hdd = _wgetenv(L"DEFJAM_HDD");
         std::filesystem::path dir = app::ExeDir() / (hdd ? hdd : L"hdd") / L"E" / L"UDATA";
         std::error_code ec;
@@ -297,18 +324,18 @@ void DrawPanel() {
     {
         const std::string latest = UpdateAvailable(), status = UpdateStatus();
         const std::string value = !status.empty() ? status
-                                  : latest.empty() ? std::string("v") + Version() + " (em dia)"
-                                                   : "Nova: " + latest + " (A atualiza)";
-        Row(12, "Versao", value, 0);
-        if (g_row == 12 && nav[kAccept] && !latest.empty()) InstallUpdate();
+                                  : latest.empty() ? std::string("v") + Version() + T(" (em dia)", " (up to date)")
+                                                   : std::string(T("Nova: ", "New: ")) + latest + T(" (A atualiza)", " (A updates)");
+        Row(14, T("Versao", "Version"), value, 0);
+        if (g_row == 14 && nav[kAccept] && !latest.empty()) InstallUpdate();
     }
     ImGui::Separator();
     // Fechar: selecionado vira vermelho; A/Enter ou clique fecha
     const bool sel = g_row == kRows - 1;
     if (sel) ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(170, 40, 30, 230));
-    if (ImGui::Button("Fechar", ImVec2(-1, 0)) || (sel && nav[kAccept])) g_open = false;
+    if (ImGui::Button(T("Fechar", "Close"), ImVec2(-1, 0)) || (sel && nav[kAccept])) g_open = false;
     if (sel) ImGui::PopStyleColor();
-    ImGui::TextDisabled("Esquerda/direita mudam o valor. B, Esc ou F10 fecham.");
+    ImGui::TextDisabled(T("Esquerda/direita mudam o valor. B, Esc ou F10 fecham.", "Left/right change the value. B, Esc or F10 close."));
     ImGui::End();
 
     if (save) app::Save();
