@@ -10,11 +10,13 @@
 #include <algorithm>
 #include <chrono>
 #include <condition_variable>
+#include <cmath>
 #include <cstring>
 #include <atomic>
 #include <mutex>
 #include <unordered_map>
 
+#include "app/app.h"
 #include "core/log.h"
 #include "cpu/x86_ops.h"
 #include "kernel/memory.h"
@@ -348,3 +350,26 @@ DEFJAM_PRESENCE(00046610, "No menu principal")  // StartMainMenu
 DEFJAM_PRESENCE(00046410, "Modo Battle")        // StartBattleMode
 DEFJAM_PRESENCE(00046450, "Modo historia")      // StartStoryMode
 DEFJAM_PRESENCE(00046E40, "Lutando")            // StartGame (a luta começa)
+
+// Parâmetros da câmera 3D: 0x1A4E0(modo, &fov, &proporção, &perto, &longe), thiscall. Modo 0 (o de jogo) devolve o
+// campo de visão horizontal em graus e a proporção 4:3 fixa; a projeção sai com xs = 1/tan(fov/2), ys = xs * proporção.
+// Em saída widescreen isso esticava tudo. Aqui, "Hor+": a mesma visão vertical e mais visão nas laterais, na medida
+// do 16:9 (o modo 1 do jogo é o 16:9 de cinema, com faixas em cima e embaixo, por isso não serve para lutar).
+X86_EXTERN_FUNC(__imp__sub_0001A4E0);
+X86_FUNC(sub_0001A4E0) {
+    const uint32_t mode = ::kernel::R32(ctx.esp + 4);
+    const uint32_t fov_out = ::kernel::R32(ctx.esp + 8), aspect_out = ::kernel::R32(ctx.esp + 12);
+    __imp__sub_0001A4E0(ctx, base);
+    static const bool off = std::getenv("DEFJAM_NO_CAM_FIX") != nullptr;
+    if (mode != 0 || off || !app::Widescreen() || !fov_out || !aspect_out) return;
+    const app::Mode m = app::Output();
+    const float target = m.height ? std::max(float(m.width) / float(m.height), 4.0f / 3.0f) : 16.0f / 9.0f;
+    float fov, aspect;
+    std::memcpy(&fov, ::kernel::HostPtr(fov_out), 4);
+    std::memcpy(&aspect, ::kernel::HostPtr(aspect_out), 4);
+    if (!(fov > 1.0f && fov < 170.0f) || !(aspect > 1.0f && aspect < 1.5f)) return;
+    constexpr float kDeg = 3.14159265f / 180.0f;
+    const float wide = 2.0f * std::atan(std::tan(fov * kDeg * 0.5f) * target / aspect) / kDeg;
+    std::memcpy(::kernel::HostPtr(fov_out), &wide, 4);
+    std::memcpy(::kernel::HostPtr(aspect_out), &target, 4);
+}

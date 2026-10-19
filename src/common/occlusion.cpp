@@ -54,6 +54,13 @@ void ScanForProjection() {
         if (!LooksLikeProjection(m)) continue;
         g_proj_va = mem::kContiguousBase + off;
         LOGI("defjam: oclusao: projecao da camera em %08X (xs %.3f ys %.3f)", g_proj_va.load(), m[0], m[5]);
+        // (diagnóstico) os floats em volta da matriz: procura a proporção e o campo de visão da câmera
+        if (std::getenv("DEFJAM_CAM_DUMP"))
+            for (int k = -64; k < 64; k += 4) {
+                float f[4];
+                std::memcpy(f, ram + off + k * 4, 16);
+                LOGI("cam %+4d: %10.5f %10.5f %10.5f %10.5f", k * 4, f[0], f[1], f[2], f[3]);
+            }
         break;
     }
     g_scanning = false;

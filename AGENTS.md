@@ -155,3 +155,13 @@ x86 -> C++, D3D8 -> D3D12, DirectSound -> XAudio2. O port de PS2 (E:\Projetos\De
   Para publicar: subir DEFJAM_VERSION, rodar release.ps1 e criar a release com tag vX.Y.Z e o zip anexado.
 - Discord (src/common/discord.cpp): IPC local, falta o Application ID (kAppId = 0 desliga). Presença por comandos
   de script: StartMainMenu 0x46610, StartBattleMode 0x46410, StartStoryMode 0x46450, StartGame 0x46E40.
+
+## Widescreen sem esticar (v0.1.1)
+- Parâmetros da câmera 3D: 0x1A4E0(modo, &fov, &proporção, &perto, &longe), thiscall. Modo 0 = jogo (fov horizontal
+  em graus, proporção 4:3 FIXA; xs = 1/tan(fov/2), ys = xs * proporção), modo 1 = 16:9 de cinema (faixas em cima e
+  embaixo), modo 2 = proporção calculada. Em saída 16:9 o modo 0 esticava tudo. hooks.cpp: Hor+ (proporção do
+  monitor e fov = 2*atan(tan(fov/2)*alvo/4:3)); conferido: xs 2.799, ys 4.976. DEFJAM_NO_CAM_FIX desliga.
+- O 2D (menus, placar) continua desenhado em 4:3 e esticado: corrigir é por tela (como o hud.cpp do BLACK).
+- Opção "aspect_4x3" (app::g_force_4x3, SDK): Widescreen() falso -> imagem 4:3 com faixas; vale ao reiniciar.
+- Áudio: diagnosticado com DEFJAM_DSTRACE (pico, estouros, fila vazia, trechos velhos no buffer 5.1, saltos):
+  tudo limpo aqui; limitador suave acima de 0.9 no Render.

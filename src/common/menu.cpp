@@ -130,12 +130,12 @@ int Row(int index, const char* label, const std::string& value, int nav_step) {
     }
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted(label);
-    ImGui::SameLine(w * 0.45f);
+    ImGui::SameLine(w * 0.47f);
     int step = sel ? nav_step : 0;
     if (ImGui::ArrowButton("##menos", ImGuiDir_Left)) step = -1, g_row = index;
     ImGui::SameLine();
     ImGui::AlignTextToFramePadding();
-    const float vw = w * 0.45f, tw = ImGui::CalcTextSize(value.c_str()).x;
+    const float vw = w * 0.43f, tw = ImGui::CalcTextSize(value.c_str()).x;
     const ImVec2 at = ImGui::GetCursorPos();
     ImGui::SetCursorPosX(at.x + std::max(0.0f, (vw - tw) * 0.5f));
     ImGui::TextUnformatted(value.c_str());
@@ -250,7 +250,7 @@ void DrawPanel() {
         g_skip_videos = uint32_t(Wrap(int(g_skip_videos) + st, 3));
         save = true;
     }
-    if (Row(10, T("Pausar sem foco (so tela cheia)", "Pause when unfocused (fullscreen only)"), g_pause_unfocused ? yes : no, step)) {
+    if (Row(10, T("Pausar sem foco (tela cheia)", "Pause unfocused (fullscreen)"), g_pause_unfocused ? yes : no, step)) {
         g_pause_unfocused = !g_pause_unfocused;
         save = true;
     }
@@ -292,7 +292,7 @@ void DrawPanel() {
         }
         ImGui::AlignTextToFramePadding();
         ImGui::TextUnformatted(T("Nome do proximo User ID", "Next User ID name"));
-        ImGui::SameLine(w * 0.45f);
+        ImGui::SameLine(w * 0.47f);
         ImGui::SetNextItemWidth(w * 0.55f);
         if (sel && nav[kAccept] && !g_name_edit) {
             g_name_edit = true;

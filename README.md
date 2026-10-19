@@ -33,7 +33,7 @@ Este port é **100% gratuito** e só é distribuído **aqui**:
 
 ## O que tem a mais que no Xbox
 
-- **Resolução do seu monitor** (ou qualquer outra), **widescreen** nativo do jogo e **supersampling** até 300%.
+- **Resolução do seu monitor** (ou qualquer outra), **widescreen 16:9 sem esticar os lutadores** (câmera corrigida) e **supersampling** até 300%.
 - **60 quadros por segundo** cravados.
 - **Oclusão de ambiente** (SSAO / GTAO): sombras de contato que dão profundidade à cena.
 - **Filtro anisotrópico** até 16x.
@@ -90,14 +90,14 @@ Teclado e mouse (mapeamento completo) ficam para uma próxima versão.
 | Idioma / Language | Automático (pelo Windows), Português ou English |
 | Modo de tela | Tela cheia, tela cheia sem bordas ou janela |
 | Resolução | Todas as que o seu monitor aceita |
-| Proporção | 16:9 (widescreen do jogo: luta mais aberta, mas menus e placar 2D esticados) ou 4:3 original (nada esticado, com faixas pretas). Vale ao reiniciar |
+| Proporção | 16:9 (tela cheia; a câmera 3D é corrigida para não esticar os lutadores, só os menus e o placar 2D ficam esticados) ou 4:3 original (nada esticado, com faixas pretas). Vale ao reiniciar |
 | Escala de renderização | 50% a 300%. Acima de 100% é supersampling (imagem mais limpa) |
 | Filtro anisotrópico | Texturas nítidas de longe |
 | V-Sync | Sincronia vertical |
 | Oclusão de ambiente | Desligada, SSAO ou GTAO |
 | Mostrar FPS | Contador no canto da tela |
-| Pular vídeos de abertura | Vai direto para a tela de título |
-| Pausar sem foco (tela cheia) | Pausa o jogo e o som no Alt+Tab; em janela, o jogo segue rodando |
+| Pular vídeos de abertura | Não, só os logos (EA, THX) ou logos e filme |
+| Pausar sem foco (tela cheia) | Pausa o jogo e o som no Alt+Tab só na tela cheia exclusiva; em janela ou sem bordas, o jogo segue rodando |
 | Desbloquear (Unlock) | Os cheats do jogo: escolha com esquerda/direita e aperte A. Cada um vale uma vez por save |
 | Nome do próximo User ID | Digite no teclado do PC; na tela do jogo, digite uma letra qualquer e DONE |
 | Pasta de saves | Abre no Explorer |
