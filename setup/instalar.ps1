@@ -299,7 +299,8 @@ function Step-Tools {
     if ($existing) {
         Status (T 'Acrescentando o que falta ao seu Visual Studio (aceite a permissão do Windows)...' 'Adding the missing parts to your Visual Studio (accept the Windows prompt)...')
         $setup = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\setup.exe'
-        $argl = @('modify', '--installPath', "`"$existing`"") + $adds + @('--passive', '--norestart')
+        # sem --wait o setup.exe volta na hora e continua instalando por trás
+        $argl = @('modify', '--installPath', "`"$existing`"") + $adds + @('--passive', '--wait', '--norestart')
         $p = Start-Process -FilePath $setup -ArgumentList $argl -Verb RunAs -PassThru
     } else {
         Status (T 'Baixando o instalador da Microsoft...' 'Downloading the Microsoft installer...')
@@ -316,9 +317,16 @@ function Step-Tools {
     }
     $bar.Style = 'Marquee'
     while (-not $p.HasExited) { Pump }
-    $bar.Style = 'Continuous'
     Log "instalador da Microsoft saiu com $($p.ExitCode)"
+    # Se ainda houver um instalador da Microsoft trabalhando, espera por ele (confere a cada ~3 s).
     $vs = Find-Vs
+    $tick = 0
+    while (-not $vs -and (Get-Process setup, vs_installer, vs_installershell, vs_BuildTools -ErrorAction SilentlyContinue)) {
+        Pump
+        if ((++$tick % 75) -eq 0) { $vs = Find-Vs }
+    }
+    if (-not $vs) { $vs = Find-Vs }
+    $bar.Style = 'Continuous'
     if (-not $vs) { Fail (T 'As ferramentas não ficaram instaladas. Tente de novo, ou instale o Visual Studio Build Tools com C++, Clang e CMake.' 'The tools did not get installed. Try again, or install Visual Studio Build Tools with C++, Clang and CMake.') }
     Log "Visual Studio: $vs"
     return $vs
