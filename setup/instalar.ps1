@@ -131,10 +131,10 @@ $intro = New-Object Windows.Forms.Label
 $intro.Location = '16,12'; $intro.Size = '672,92'
 $intro.Text = T ("O jogo é montado aqui no seu PC a partir da SUA .iso do Def Jam: Fight for NY de Xbox (versão USA). " +
     "Nada do jogo vem pela internet.`n`nA primeira instalação baixa as ferramentas gratuitas da Microsoft (alguns GB, " +
-    "uma vez só) e compila por 30 a 90 minutos. Pode usar o PC enquanto isso.") `
+    "uma vez só) e compila por alguns minutos (uns 3 num PC rápido, mais num PC simples). Pode usar o PC enquanto isso.") `
     ("The game is built here on your PC from YOUR Def Jam: Fight for NY Xbox .iso (USA version). Nothing from the " +
     "game comes from the internet.`n`nThe first install downloads Microsoft's free build tools (a few GB, once) and " +
-    "compiles for 30 to 90 minutes. You can keep using your PC meanwhile.")
+    "compiles for a few minutes (about 3 on a fast PC, longer on a modest one). You can keep using your PC meanwhile.")
 $form.Controls.Add($intro)
 
 $isoLabel = New-Object Windows.Forms.Label
@@ -326,7 +326,7 @@ cmake $cfg || exit /b 1
 echo compilando
 cmake --build out\build\release || exit /b 1
 "@ | Set-Content -Path $cmd -Encoding Default
-    Status (T 'Compilando o jogo (a primeira vez demora de 30 a 90 minutos)...' 'Building the game (the first time takes 30 to 90 minutes)...')
+    Status (T 'Compilando o jogo (alguns minutos na primeira vez)...' 'Building the game (a few minutes the first time)...')
     $r = New-Object DjProc
     $r.Start($env:ComSpec, "/c `"$cmd`"", $Source)
     $line = $null
