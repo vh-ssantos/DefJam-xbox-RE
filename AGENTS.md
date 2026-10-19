@@ -183,6 +183,11 @@ x86 -> C++, D3D8 -> D3D12, DirectSound -> XAudio2. O port de PS2 (E:\Projetos\De
 - v0.1.0 (2026-10-18): primeira pública. v0.1.1 (2026-10-18): Hor+ 3D, idioma PT/EN (src/common/lang.cpp, automático
   por GetUserDefaultUILanguage, também na janela de escolher a ISO), proporção 4:3, pular vídeos em 3 modos, pausa só
   na tela cheia exclusiva, cheats com respostas claras, limitador suave. SHA-256 do zip v0.1.1: 1F4B3EF0...DEFDB06A.
+- v0.2.0 (2026-10-19): widescreen completo + distribuição nova (Instalar.cmd monta o jogo da ISO). Os zips com exe
+  pronto da v0.1.0/v0.1.1 foram retirados (com o OK do usuário); as páginas avisam para usar a versão nova.
+- v0.3.0 (2026-10-19): texturas HD (Codex, branch hd-texturas juntada à main) + 2 correções do instalador (registro
+  compartilhado; esperar o Visual Studio Installer). Quem vem da v0.2.0 atualiza pelo F10; o HD só se gera rodando
+  o Instalar.cmd de novo com a caixa marcada (o -Update não gera HD).
 - Divulgado no Reddit (r/decomps). Feedback: tela esticada (3D resolvido, 2D pendente), primeira tela em português
   (resolvido com o idioma), pedidos de Linux e de online.
 
@@ -233,24 +238,31 @@ x86 -> C++, D3D8 -> D3D12, DirectSound -> XAudio2. O port de PS2 (E:\Projetos\De
   baixar a v0.2.0 à mão (dizer nas notas da release).
 - Linux/Proton: o instalador não roda lá; montar no Windows e copiar a pasta (README).
 
-## PASSAGEM DE BASTÃO (2026-10-19) — leia isto primeiro
-Estado: main tem o widescreen completo + a distribuição nova (DEFJAM_VERSION 0.2.0), tudo testado aqui:
-- instalador de ponta a ponta numa pasta limpa (E:TesteSetup, do zip de tools/release.ps1): leu a .iso, SHA-1 ok,
-  copiou, compilou (2,5 min do zero com DEFJAM_SETUP_LLVM=E:Toolsllvmin), "Pronto"; o exe montado abre a .iso.
-- NÃO publicado ainda. Para publicar a v0.2.0 (só com o OK do usuário, que gosta de testar antes):
-  1. git limpo -> tools/release.ps1 -> dist/DefJam-FFNY-PC-v0.2.0.zip (imprime o SHA-256);
-  2. gh release create v0.2.0 com o zip e notas PT/EN (modelo em notas-v0.1.1 no histórico: avisar que quem tem
-     v0.1.x precisa baixar à mão, porque o atualizador antigo procura o exe no zip; explicar o Instalar.cmd);
-  3. remover o exe pronto das releases v0.1.0/v0.1.1 (gh release delete-asset) SÓ com o OK explícito do usuário.
-- Pendências, em ordem: (1) texturas HD: Lanczos 4x geradas da ISO do jogador no instalador + troca de textura
-  por hash no renderer (docs/hd-textures.md do vyanhursky); (2) teclado e remapeamento; (3) menu de dev da EA
-  (achado pelo vyanhursky, docs/developer-menu.md lá); (4) online amigo x amigo (seção Pendências acima; diferencial,
-  nenhum port tem); (5) fundo desfocado nas laterais dos menus em 16:9; (6) canvas mais largo (hoje 640*escala
-  esticado no 16:9).
+## PASSAGEM DE BASTÃO (atualizada 2026-10-19, v0.3.0) — leia isto primeiro
+Estado: main = v0.3.0 publicada (widescreen completo, instalador que monta o jogo da ISO, texturas HD opcionais).
+- O HD foi feito pelo Codex (OpenAI) na branch hd-texturas, revisado e juntado à main (fast-forward). Seção abaixo.
+- Instalador testado de ponta a ponta COM HD na janela real (pasta de teste com os atalhos desviados): achou o VS,
+  compilou, conferiu as 18.971 texturas, ativou hd_textures, "Pronto"; o usuário jogou com HD.
+- Duas correções do instalador nesta versão: (1) o registro era gravado com Add-Content a cada linha; com outro
+  processo lendo o arquivo dava "O fluxo não era legível" e derrubava a instalação (parou em 4242/18971 HD).
+  Agora um StreamWriter com FileShare.ReadWrite e 1 linha de progresso a cada 256. (2) "setup.exe modify" sem
+  --wait volta na hora; o instalador dizia "ferramentas não instaladas" com o VS Installer ainda baixando o clang.
+  Agora --wait e espera enquanto houver instalador da Microsoft aberto.
+- Esta máquina agora TEM o clang do VS (acrescentado em 2026-10-19 pelo teste). DEFJAM_SETUP_LLVM=E:\Tools\llvm\bin
+  continua valendo para testes. O caminho "PC sem nada da Microsoft" (vs_BuildTools.exe) NUNCA foi testado de
+  ponta a ponta: o usuário vai testar num PC limpo / Área Restrita do Windows com um amigo.
+- Pegadinha: no Bash do Claude Code, `cmd //c compilar.cmd` NÃO acha o arquivo e falha em silêncio (o log em
+  out\compilar.log fica o antigo!). Use o caminho completo: cmd //c "E:\Projetos\DefJam-xbox-RE\compilar.cmd".
+- Para publicar uma versão: subir DEFJAM_VERSION, git limpo e enviado, tools/release.ps1 -> dist/*.zip (SHA-256),
+  gh release create vX.Y.Z com o zip e notas PT/EN, baixar de volta e conferir o SHA-256. Avisar o usuário antes.
+- Pendências, em ordem: (1) teste em PC limpo (usuário); (2) teclado e remapeamento; (3) menu de dev da EA
+  (docs/developer-menu.md do vyanhursky); (4) online amigo x amigo (diferencial, nenhum port tem); (5) fundo
+  desfocado nas laterais dos menus em 16:9; (6) canvas mais largo; (7) testar o resto do jogo (modos, arenas,
+  história) também com HD (alfa de material pode estar errado em alguma textura).
 - Regras do usuário continuam: pt-BR, nada de teclas no PC (só DEFJAM_PAD_CMD), foto só da janela do port, não
   fechar o jogo dele, commits com Co-Authored-By, avisar antes de publicar.
 
-## Texturas HD (2026-10-19, branch hd-texturas)
+## Texturas HD (2026-10-19, Codex; na main desde a v0.3.0)
 - Gerador C++20 `tools/hdpack` (`defjam_hdpack.exe`, compilado pelo CMake junto do port); sem Python, IA ou
   downloads de packs. Lê a ISO do jogador com XDVDFS (partições 0 e 0x18300000), ou `--root` extraído. Saída em
   `<instalação>/hd/`, ignorada pelo git. CLI: `--iso arquivo.iso --output hd --scale 4` (ou 2), `--workers N`,

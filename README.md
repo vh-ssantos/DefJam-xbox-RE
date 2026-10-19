@@ -5,7 +5,7 @@ código do jogo foi recompilado para rodar direto no PC, com imagem em Direct3D 
 
 Feito com o [XboxXBE-Recomp](https://github.com/TGP482/XboxXBE-Recomp) (TGP482), a mesma ferramenta do port do BLACK.
 
-> **English speakers:** the port and its menus switch to English automatically on a non-Portuguese Windows (or pick it in the in-game F10 menu). Quick start: download the zip from Releases, unzip it, run `Instalar.cmd` and pick your own Xbox (USA) .iso. The setup builds the game on your PC from your disc (no game code is downloaded); the first build takes a few minutes and needs Microsoft's free Visual Studio Build Tools, which the setup offers to install.
+> **English speakers:** the port and its menus switch to English automatically on a non-Portuguese Windows (or pick it in the in-game F10 menu). Quick start: download the zip from Releases, unzip it, run `Instalar.cmd` and pick your own Xbox (USA) .iso. The setup builds the game on your PC from your disc (no game code is downloaded); the first build takes a few minutes and needs Microsoft's free Visual Studio Build Tools, which the setup offers to install. Optional HD textures (4x Lanczos, generated locally from your own ISO, ~6 GB) are a checkbox in the setup.
 
 > [!IMPORTANT]
 > **Este projeto não contém o jogo.** Não há ISO, arquivos de dados, músicas, vídeos, artes nem código original do
@@ -28,8 +28,8 @@ Este port é **100% gratuito** e só é distribuído **aqui**:
 - O port **nunca pede login, senha, cartão, Discord ou e-mail**. Ele só acessa a internet para ver se há versão
   nova, no próprio GitHub (dá para desligar com `check_updates = false` no `settings.toml`).
 - **Confira o arquivo:** cada release lista o **SHA-256** do `.zip`. No PowerShell:
-  `Get-FileHash DefJam-FFNY-PC-v0.2.0.zip` tem que dar exatamente o mesmo código da página da release.
-- O instalador é um script que dá para ler (`sourcesetupinstalar.ps1`): ele só baixa o instalador oficial da
+  `Get-FileHash DefJam-FFNY-PC-v0.3.0.zip` tem que dar exatamente o mesmo código da página da release.
+- O instalador é um script que dá para ler (`source\setup\instalar.ps1`): ele só baixa o instalador oficial da
   Microsoft (e confere a assinatura dele antes de abrir). O jogo montado não é assinado digitalmente; o Windows
   SmartScreen pode avisar "aplicativo não reconhecido" na primeira vez.
 
