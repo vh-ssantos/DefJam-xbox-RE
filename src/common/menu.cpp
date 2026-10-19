@@ -93,7 +93,7 @@ int IndexOf(const std::vector<T>& v, const T& x) {
 }
 int Wrap(int i, int n) { return (i % n + n) % n; }
 
-constexpr int kRows = 16;  // 15 opções + Fechar
+constexpr int kRows = 17;  // 16 opções + Fechar
 char g_name[16] = {};  // nome do próximo User ID, digitado no teclado do PC
 bool g_name_edit = false;
 
@@ -330,6 +330,14 @@ void DrawPanel() {
         Row(14, T("Versao", "Version"), value, 0);
         if (g_row == 14 && nav[kAccept] && !latest.empty()) InstallUpdate();
     }
+    if (Row(15, T("Texturas HD (reinicie)", "HD textures (restart)"),
+            app::g_hd_textures ? T("Ligadas", "On") : T("Desligadas", "Off"), step)) {
+        app::g_hd_textures = !app::g_hd_textures;
+        save = true;
+    }
+    if (g_row == 15)
+        ImGui::TextDisabled("%s", T("Gere o pacote HD no instalador, usando a sua ISO.",
+                              "Generate the HD pack in setup from your own ISO."));
     ImGui::Separator();
     // Fechar: selecionado vira vermelho; A/Enter ou clique fecha
     const bool sel = g_row == kRows - 1;

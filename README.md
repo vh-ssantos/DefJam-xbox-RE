@@ -109,6 +109,29 @@ Teclado e mouse (mapeamento completo) ficam para uma próxima versão.
 
 Tudo fica salvo no `settings.toml` ao lado do exe.
 
+## Texturas HD (opcional)
+
+No instalador, marque **Gerar texturas HD** para ampliar as texturas da sua própria ISO em 4 vezes com Lanczos,
+preservando o desenho original, sem IA. O pacote fica na pasta `hd`, ao lado do jogo, e não é distribuído pelo projeto.
+Reserve aproximadamente **6 GB adicionais**; a geração leva alguns minutos e mostra o progresso. A quantidade e o
+espaço exatos aparecem no registro da geração. A opção vem desmarcada.
+
+Depois, use **F10 → Texturas HD** e reinicie o jogo para ativar ou desativar. Atualizações preservam `hd`.
+Na primeira aparição de uma textura, o original continua visível enquanto a imagem HD é carregada em segundo plano.
+O cache HD usa até 512 MiB adicionais de memória da placa de vídeo; se faltar espaço, o jogo usa o original.
+Vídeos, fontes dinâmicas e alvos de renderização continuam no caminho original. A revisão de todos os materiais e
+modos do jogo continua necessária; o pack não contém desenhos novos nem recupera detalhes ausentes no original.
+
+Quem compila pode gerar também em 2x, após a compilação:
+
+```powershell
+.\out\build\release\defjam_hdpack.exe --iso "D:\Jogos\DefJam.iso" --output .\hd --scale 2
+```
+
+O gerador é C++ e usa componentes do Windows; não exige Python. Consulte [tools/hdpack](tools/hdpack/README.md)
+para formatos, retomada e opções de diagnóstico. Para levar a instalação ao Linux/Proton, copie também a pasta `hd`;
+o funcionamento HD nesse ambiente ainda precisa de teste.
+
 ## Requisitos
 
 - Windows 10 ou 11, 64 bits.
@@ -163,6 +186,10 @@ ligação com elas nem com a Microsoft, e não é endossado por elas. Não distr
 - O mapa do widescreen (câmera, cenas, placar, passo da luta) vem da pesquisa publicada pelo
   [DefJamFFNY-recomp](https://github.com/vyanhursky/DefJamFFNY-recomp) de vyanhursky (MIT), outro port do mesmo jogo:
   vale conhecer, ele roda também no macOS e no Linux.
+- O formato de identidade das texturas HD, a pesquisa dos arquivos BIG/RefPack/SHPX e os aliases de correlação vêm
+  também de [vyanhursky/DefJamFFNY-recomp](https://github.com/vyanhursky/DefJamFFNY-recomp), MIT, copyright
+  Vlad Yanhursky. O gerador C++ e o carregador D3D12 foram implementados para este runtime; licença preservada em
+  `sdk/THIRD_PARTY.txt`.
 - GTAO segundo Jimenez et al. (2016) e o [XeGTAO](https://github.com/GameTechDev/XeGTAO) da Intel; SSAO segundo o
   "Alchemy AO" de McGuire et al. (2011).
 
@@ -171,3 +198,4 @@ Código deste projeto sob licença [MIT](LICENSE) (só o código escrito aqui; n
 ---
 
 Feito por **vh-ssantos** com **Claude** (Anthropic), via [Claude Code](https://claude.com/claude-code).
+Implementação de texturas HD com **Codex** (OpenAI).

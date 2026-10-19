@@ -41,6 +41,8 @@ float RenderScale(uint32_t guest_height);
 bool Widescreen();
 // (DefJam) 1: a imagem sai em 4:3 como numa TV 4:3 (nada esticado, faixas pretas); vale por completo ao reiniciar
 inline uint32_t g_force_4x3 = 0;
+// (DefJam) preferência salva; o renderer lê uma vez ao iniciar (texturas HD exigem reiniciar).
+inline uint32_t g_hd_textures = 0;
 
 std::filesystem::path ExeDir();
 // the game in assets (game_files.cpp): its folder and this executable's xbe, from the extracted files or a disc

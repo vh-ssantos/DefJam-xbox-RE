@@ -249,3 +249,73 @@ Estado: main tem o widescreen completo + a distribuição nova (DEFJAM_VERSION 0
   esticado no 16:9).
 - Regras do usuário continuam: pt-BR, nada de teclas no PC (só DEFJAM_PAD_CMD), foto só da janela do port, não
   fechar o jogo dele, commits com Co-Authored-By, avisar antes de publicar.
+
+## Texturas HD (2026-10-19, branch hd-texturas)
+- Gerador C++20 `tools/hdpack` (`defjam_hdpack.exe`, compilado pelo CMake junto do port); sem Python, IA ou
+  downloads de packs. Lê a ISO do jogador com XDVDFS (partições 0 e 0x18300000), ou `--root` extraído. Saída em
+  `<instalação>/hd/`, ignorada pelo git. CLI: `--iso arquivo.iso --output hd --scale 4` (ou 2), `--workers N`,
+  `--limit N`/`--select texto` só para diagnóstico, `--self-test` só dados sintéticos.
+- Pesquisa/identidade/aliases: [vyanhursky/DefJamFFNY-recomp](https://github.com/vyanhursky/DefJamFFNY-recomp), MIT,
+  commit 7abc684a795221504d60fd0e8482bb9545cd17c8; crédito no README e licença completa em `sdk/THIRD_PARTY.txt`.
+  BIGF/BIG4, RefPack, SHPX: 0x60/61/62 = DXT1/3/5, 0x7b = P8 + paleta BGRA (bloco anexo 0x2a), 0x7d = BGRA8.
+  Flag 0x2000 = Morton, 0x1000 = referência indireta. Um 0x65 (`misc.viv::C_ENV00A.xsh`, 32x32) não tem decoder e
+  continua original. Limites: arquivos/descompressão de até 128 MiB, 12 níveis de contêiner; sete arquivos grandes
+  de áudio excluídos. Não foram necessários novos endereços/hooks do guest.
+- Nome = SHA-256 de `XRTEX01\0` + cinco uint32 LE (formato NV2A, largura, altura, entradas reais da paleta,
+  largura da linha em texels) + bytes completos do nível base + paleta BGRA. Sem ponteiros/endereço. Header
+  compartilhado `sdk/runtime/gpu/hd_texture_id.h`; BC1/2/3 compartilhado em `hd_bc_decode.h` (expansão por bits).
+  Segundo ID = BGRA8 compacto, formato 0x12. Índice TSV mapeia raw/decoded/13 aliases verificados da referência
+  para PNGs. Correlação estática não comprova substituição de todos os estados do jogo.
+- Lanczos3 separável 4x/2x, RGB premultiplicado pelo alfa para opacidade/UI; nos escopos 3D pesquisados
+  v2ip/v2cp/v2bg/icrowd/cincrowd/v2cm, canais independentes preservam RGB mesmo quando alfa é zero (dados de
+  material). Política explícita por componentes de arquivos, registrada em `policies.tsv`; se aliases compartilham
+  conteúdo e algum é de material, prevalece a preservação. PNG com alfa independente. Recipe v3;
+  `textures/lanczos3-material-v3-4x/<id>.png`. PNG escolhido para alfa exato e disco menor que DDS BGRA8+mips; sem
+  BC7. Índice só é publicado quando termina; PNG/checksums/índice são substituídos atomicamente. Retomada confere
+  SHA-256 e política de alfa; arquivo corrompido ou política alterada é reconstruído. Arquivos sem recibo de uma
+  execução interrompida são recalculados.
+- Renderer `hd_textures.cpp` + caminho separado em `d3d12.cpp` (mudanças SDK marcadas DefJam): worker lê índice,
+  PNG via WIC e gera todos mipmaps segundo `policies.tsv`: canais independentes para material, RGB ponderado
+  pelo alfa para opacidade. Política ausente preserva canais; alfa não é sempre opacidade.
+  O SHA-256 completo é calculado ao subir o original; o detector de mudanças continua sendo MemSig/DirtyEpoch do
+  runtime (MemSig amostra recursos grandes). Não afirma detectar imediatamente toda escrita sem lock do guest.
+  Somente texturas 2D normalizadas até 1024x1024 entram; rect/linear, cubos, volumes, YUV, depth e render targets
+  preservam o caminho original. Pack ausente/pendente/incompatível volta ao original, sem aguardar arquivo.
+- Cache HD LRU de 512 MiB de alocação real D3D12, incluindo recursos aposentados que aguardam fence; nunca
+  expulsa recurso usado no quadro atual (protege estágios/draws). Upload limitado a 4 MiB por quadro, em fatias de
+  linhas, e avanço a cada Present mesmo após sair da tela. Só mostra HD quando todos os mips terminaram.
+  CPU: cache pronto até 128 MiB + uploads pendentes até 128 MiB, mais um PNG em decodificação/temporários e índice;
+  não confundir esse limite com memória total do processo. `XBE_PERF=1` + `DEFJAM_LOG=1` registram hits/fallbacks,
+  VRAM HD e uso DXGI do processo. Overrides só de teste: `DEFJAM_HD_TEXTURES`, `DEFJAM_HD_DIR`, `DEFJAM_HD_BUDGET_MB`.
+- `hd_textures=0` padrão, opção F10 bilíngue exige reiniciar; o renderer fixa a preferência no Init. Instalador
+  preserva BOM, caixa HD desmarcada, progresso por stdout; ativa a preferência apenas depois do sucesso. Pack
+  fica fora de `source`; `-Update` não gera/apaga o pack nem altera a opção. `-HdTextures` habilita no modo Auto.
+- Testes sintéticos: SHA-256/XRTEX01, mutação de paleta, BC1/2/3, BIG, RefPack literal/sobreposto/truncado,
+  SHPX Morton, Lanczos alfa, PNG BGRA; teste do Loader (`defjam_hd_loader_test`, target explícito) verifica
+  fila/aliases/mips/reload, arquivo corrompido e rejeição de caminhos inválidos. Instalador: parsing/BOM e fluxos
+  sucesso/falha/Update com processo simulado, preservando as outras preferências.
+- Medições locais finais (RX 7800 XT, 1280x720, escala 100%, GTAO, V-Sync, XBE_PERF=1 + DEFJAM_LOG=1):
+  18.971 PNGs = 6.213.100.766 bytes; pack com índices/recibos ~6.223.502.746 bytes (6,22 GB). Geração inicial
+  326,768 s (5 min 27 s), 8 workers, pasta extraída; piloto de 32 imagens lidas da ISO gerou os mesmos checksums.
+  Verificação integral de hashes/dimensões/índice: PASS, 19,99 s, 39.180 chaves; 7.197 material, 11.774 opacidade.
+  `Step-HdTextures` + `DjProc` reais, controles WinForms sem mostrar janela: retomou 18.971/18.971 em 85,47 s,
+  barra 1000/Continuous, ativou HD preservando width/language e chaves de outra tabela. Drenagem de progresso
+  também processa eventos durante grandes filas, para a janela continuar pintando durante uma retomada.
+- Battle Blaze x Doc / Foundation com recipe final: roteiro `tools/ate_luta.ps1` precisou de START adicional aos
+  32 s (com log, o START aos 28 s ainda pulava o filme); fotos conferiram menu, seleção e luta. 59 amostras de
+  aproximadamente 1 s entre t=115,338 e 173,937: média 60,010 fps, faixa 59,8–60,2; host médio 4,918 ms/quadro.
+  Luta seguiu até o placar final sem crash. Referência sem HD: 24 amostras 59,8–60,2, média 60,013 fps; havia
+  geração em paralelo nessa referência, portanto não é comparação controlada de custo de CPU.
+  VRAM HD máxima registrada 511,7/512 MiB; uso DXGI total do processo até 616,5 MiB (inclui nativo/alvos/buffers).
+  130 expulsões LRU no percurso final; recursos continuaram protegidos pelas fences. Primeiro quadro com HD
+  aos 0,564 s, cache do Windows quente: é o primeiro Present, não o título nem medição de boot frio.
+- Teste adicional com orçamento artificial de 64 MiB: pico registrado 62,8 MiB, milhares de evicções e retorno ao
+  original, sem crash/trava; menu continuou em torno de 60 fps. Busca automática encontrou `<raiz>/hd` sem override
+  de pasta. F10: opção visível em 720p, muda/salva a preferência, renderer continua com o valor fixado até reiniciar.
+  Fotos `runs/hd-before-{menu,selection,fight}.png` e `runs/hd-after-{menu,selection,fight}.png`; menu F10 em
+  `runs/hd-options*.png`. Logs/relatório/JSON e verificação em `runs/hd/`; nunca versionar esses dados/imagens.
+- Limites ainda necessários: revisar todos os materiais (alfa pode codificar dados, não só opacidade), modos,
+  arenas e história; testar instalação gráfica completa com a caixa HD e Linux/Proton. Texturas transformadas pelo
+  jogo podem precisar de aliases adicionais. Fontes dinâmicas e vídeos não são HD. Nenhum dado do jogo vai ao git.
+- REA 6.4.0 usado por CLI e registro Codex reparado com backup; XBE não reconhecido diretamente pelo parser.
+  Evidências e limitações em `notes/hd-rea.md`; resultado PE é inventário estático, não prova visual/execução HD.

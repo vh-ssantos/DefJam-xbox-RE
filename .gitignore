@@ -37,3 +37,6 @@ settings.toml
 
 # pacotes de release (tools/release.ps1)
 /dist/
+
+# (DefJam) texturas HD geradas da ISO do jogador, nunca distribuídas
+/hd/

@@ -6,6 +6,9 @@ project(game LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Own-disc optional HD pack builder (CPU Lanczos, no Python or game assets).
+add_subdirectory(tools/hdpack)
+
 # the SDK: sdk/ here, two folders up inside the SDK's templates, a checkout beside this repository, else downloaded
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/sdk/cmake/XbeRecomp.cmake)
     set(SDK ${CMAKE_CURRENT_SOURCE_DIR}/sdk)

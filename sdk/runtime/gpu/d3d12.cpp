@@ -16,6 +16,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib> // (DefJam) diagnostic HD overrides
 #include <cstring>
 #include <deque>
 #include <filesystem>
@@ -35,6 +36,9 @@
 #include "gpu/ext.h"
 #include "gpu/shaders.h"
 #include "gpu/texture.h"
+#include "gpu/hd_textures.h" // (DefJam) locally generated texture replacements
+#include "gpu/hd_texture_id.h"
+#include "gpu/hd_bc_decode.h"
 #include "gpu/vertex.h"
 #include "kernel/kernel.h"
 
@@ -321,6 +325,17 @@ struct Tex {
     uint64_t frame = 0;
     uint64_t palette = 0;  // hash of the colours a P8 texture was decoded with
     uint8_t flags = 0;  // Extension::Decoded's
+    // (DefJam) content identity survives PNG loading; cleared whenever source content changes.
+    std::string hd_id, hd_decoded, hd_path;
+};
+
+// (DefJam) HD resources have their own LRU, without changing the guest texture's layout or UV coordinates.
+struct HdTex {
+    Tex texture;
+    std::shared_ptr<const hd::Image> image;
+    uint64_t bytes = 0, used = 0;
+    uint32_t level = 0, row = 0;
+    bool ready = false;
 };
 
 struct PsoKey {
@@ -661,6 +676,15 @@ private:
     std::unordered_map<uint64_t, Target> targets_;
     std::unordered_map<uint32_t, uint64_t> target_used_;  // target address to the frame it was last used
     std::unordered_map<uint64_t, Tex> textures_;  // by data address, a P8 texture's with its palette's above
+    // (DefJam) 512 MiB extra VRAM, including resources waiting for their frame fence; 4 MiB upload/frame.
+    hd::Loader hd_loader_;
+    bool hd_enabled_ = false;
+    uint64_t hd_budget_ = 512ull << 20, hd_bytes_ = 0, hd_retired_[kFrames] = {};
+    uint64_t hd_upload_frame_ = ~0ull, hd_upload_bytes_ = 0, hd_hits_ = 0, hd_fallbacks_ = 0, hd_evictions_ = 0;
+    std::unordered_map<std::string, HdTex> hd_cache_;
+    void HdIdentity(Tex&, const TextureDesc&, const FormatInfo&, const uint8_t*, const uint32_t*, uint32_t);
+    ID3D12Resource* BindHd(Tex&, const TextureDesc&, D3D12_SHADER_RESOURCE_VIEW_DESC&);
+    void UploadHd(HdTex&);
     std::unordered_map<uint64_t, ComPtr<ID3D12PipelineState>> blit_psos_;
     Extension* ext_ = nullptr;
     // one frame capture: every draw in a text file, each target as the frame leaves it, the textures it read
@@ -751,6 +775,27 @@ bool D3D12Backend::Init(uint32_t width, uint32_t height) {
     ImGui_ImplDX12_Init(dev_.Get(), kFrames, DXGI_FORMAT_B8G8R8A8_UNORM, ui_heap_.Get(),
                         ui_heap_->GetCPUDescriptorHandleForHeapStart(), ui_heap_->GetGPUDescriptorHandleForHeapStart());
     LoadSettings();
+    // (DefJam) preference is latched for this process; test override doesn't change the player's settings.
+    hd_enabled_ = app::g_hd_textures != 0;
+    if (const char* value = std::getenv("DEFJAM_HD_TEXTURES")) hd_enabled_ = std::atoi(value) != 0;
+    if (const char* value = std::getenv("DEFJAM_HD_BUDGET_MB"))
+        hd_budget_ = uint64_t(std::clamp(std::atoi(value), 64, 2048)) << 20;
+    if (hd_enabled_) {
+        auto root = app::ExeDir();
+        if (const wchar_t* value = _wgetenv(L"DEFJAM_HD_DIR")) root = value;
+        else {
+            // Installed exe is beside hd/; development exe is three directories below the project root.
+            for (int i = 0; i < 5; ++i) {
+                if (std::filesystem::exists(root / "hd" / "index.tsv")) break;
+                if (root.parent_path() == root) break;
+                root = root.parent_path();
+            }
+            root /= "hd";
+        }
+        hd_loader_.Start(root);
+        LOGI("hd: enabled, budget %llu MiB, asynchronous PNG/mips, pack %s",
+            (unsigned long long)(hd_budget_ >> 20), root.string().c_str());
+    }
     Begin();
     LOGI("d3d12: %ux%u guest, %ux%u window, render scale %.3f", width, height, bb_w_, bb_h_, scale_);
     return true;
@@ -1685,6 +1730,121 @@ void D3D12Backend::UploadTexture(Tex& tx, const TextureDesc& d, const FormatInfo
     Transition(tx.res.Get(), st, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
+// (DefJam) Only static normalized 2D textures participate. Rects, video, cubes, depth and render targets stay native.
+void D3D12Backend::HdIdentity(Tex& tx, const TextureDesc& d, const FormatInfo& fi, const uint8_t* p,
+                             const uint32_t* palette, uint32_t entries) {
+    tx.hd_id.clear(); tx.hd_decoded.clear(); tx.hd_path.clear();
+    if (d.linear || d.cube || d.depth != 1 || fi.depth || d.format == 0x24 || d.format == 0x25 ||
+        d.width > 1024 || d.height > 1024 || (d.format == 0x0b && !palette)) return;
+    std::span<const uint8_t> source(p, LevelSize(d, 0));
+    std::span<const uint8_t> colours(reinterpret_cast<const uint8_t*>(palette), size_t(entries) * 4);
+    tx.hd_id = defjam::hd::TextureId(d.format, d.width, d.height, source, colours);
+    std::vector<uint8_t> pixels;
+    uint32_t pitch = 0;
+    if (fi.compressed) {
+        if (!defjam::hd::DecodeBC(d.format, d.width, d.height, source, pixels)) return;
+    } else DecodeLevel(d, 0, 0, p, palette, pixels, pitch);
+    if (pixels.size() == size_t(d.width) * d.height * 4)
+        tx.hd_decoded = defjam::hd::TextureId(0x12, d.width, d.height, pixels);
+}
+
+// (DefJam) Spread large uploads across presents, keeping the original texture until every mip is complete.
+void D3D12Backend::UploadHd(HdTex& entry) {
+    constexpr uint64_t kPerFrame = 4ull << 20;
+    if (hd_upload_frame_ != presents_) { hd_upload_frame_ = presents_; hd_upload_bytes_ = 0; }
+    const auto& image = *entry.image;
+    while (entry.level < image.levels.size() && hd_upload_bytes_ < kPerFrame) {
+        uint32_t w = std::max(1u, image.width >> entry.level), h = std::max(1u, image.height >> entry.level);
+        uint32_t pitch = (w * 4 + 255) & ~255u;
+        uint32_t rows = uint32_t(std::min<uint64_t>(h - entry.row, (kPerFrame - hd_upload_bytes_) / pitch));
+        if (!rows) break;
+        uint64_t bytes = uint64_t(pitch) * rows;
+        Alloc allocation = Upload(bytes, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT);
+        const auto& source = image.levels[entry.level];
+        for (uint32_t row = 0; row < rows; ++row)
+            std::memcpy(allocation.cpu + size_t(row) * pitch, source.data() + size_t(entry.row + row) * w * 4, w * 4);
+        D3D12_TEXTURE_COPY_LOCATION dst{entry.texture.res.Get(), D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX};
+        dst.SubresourceIndex = entry.level;
+        D3D12_TEXTURE_COPY_LOCATION src{allocation.res, D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT};
+        src.PlacedFootprint.Offset = allocation.off;
+        src.PlacedFootprint.Footprint = {kBgra, w, rows, 1, pitch};
+        cl_->CopyTextureRegion(&dst, 0, entry.row, 0, &src, nullptr);
+        hd_upload_bytes_ += bytes;
+        entry.row += rows;
+        if (entry.row == h) { ++entry.level; entry.row = 0; }
+    }
+    if (entry.level == image.levels.size()) {
+        D3D12_RESOURCE_STATES state = D3D12_RESOURCE_STATE_COPY_DEST;
+        Transition(entry.texture.res.Get(), state, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        entry.ready = true; entry.image.reset();
+        LOG_FIRST(24, "hd: ready %ux%u, %u mips", uint32_t(entry.texture.res->GetDesc().Width),
+                  entry.texture.res->GetDesc().Height, entry.texture.levels);
+    }
+}
+
+ID3D12Resource* D3D12Backend::BindHd(Tex& native, const TextureDesc& guest, D3D12_SHADER_RESOURCE_VIEW_DESC& view) {
+    // (DefJam) recheck layout on every bind, including a header reused before a guest Lock notification.
+    if (guest.linear || guest.cube || guest.depth != 1 || native.hd_id.empty()) return nullptr;
+    auto found = hd_cache_.find(native.hd_path);
+    if (found == hd_cache_.end()) {
+        auto image = hd_loader_.Get(native.hd_id, native.hd_decoded, native.hd_path);
+        if (!image) { ++hd_fallbacks_; return nullptr; }
+        uint32_t scale = image->width / guest.width;
+        if ((scale != 2 && scale != 4) || image->width != guest.width * scale || image->height != guest.height * scale) {
+            ++hd_fallbacks_; return nullptr;
+        }
+        // Avoid retaining too many partly uploaded decoded images at once.
+        size_t loading = 0, loading_bytes = 0;
+        for (const auto& [id, cached] : hd_cache_) if (!cached.ready) {
+            ++loading; loading_bytes += cached.image->Bytes();
+        }
+        if (loading >= 4 || loading_bytes + image->Bytes() > (128ull << 20)) { ++hd_fallbacks_; return nullptr; }
+        D3D12_RESOURCE_DESC desc{};
+        desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+        desc.Width = image->width; desc.Height = image->height; desc.DepthOrArraySize = 1;
+        desc.MipLevels = UINT16(image->levels.size()); desc.Format = kBgra; desc.SampleDesc.Count = 1;
+        uint64_t size = dev_->GetResourceAllocationInfo(0, 1, &desc).SizeInBytes;
+        if (size > hd_budget_) { ++hd_fallbacks_; return nullptr; }
+        // Old resources are retired behind the frame fence and remain charged until that fence completes.
+        if (hd_bytes_ + size > hd_budget_) {
+            uint64_t pending = 0; for (auto bytes : hd_retired_) pending += bytes;
+            while (hd_bytes_ - pending + size > hd_budget_) {
+                auto victim = hd_cache_.end();
+                for (auto it = hd_cache_.begin(); it != hd_cache_.end(); ++it)
+                    if (it->second.used < presents_ && (victim == hd_cache_.end() || it->second.used < victim->second.used))
+                        victim = it;
+                if (victim == hd_cache_.end()) break;
+                hd_retired_[frame_ % kFrames] += victim->second.bytes;
+                pending += victim->second.bytes;
+                ++hd_evictions_;
+                Release(std::move(victim->second.texture.res));
+                hd_cache_.erase(victim);
+            }
+            if (hd_bytes_ + size > hd_budget_) { ++hd_fallbacks_; return nullptr; }
+        }
+        HdTex replacement;
+        D3D12_HEAP_PROPERTIES heap{D3D12_HEAP_TYPE_DEFAULT};
+        if (FAILED(dev_->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &desc,
+            D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&replacement.texture.res)))) {
+            ++hd_fallbacks_; return nullptr;
+        }
+        replacement.texture.fmt = kBgra;
+        replacement.texture.levels = UINT32(image->levels.size());
+        replacement.image = std::move(image); replacement.bytes = size; replacement.used = presents_;
+        hd_bytes_ += size;
+        found = hd_cache_.emplace(native.hd_path, std::move(replacement)).first;
+        hd_loader_.Consumed(native.hd_path);
+    }
+    auto& entry = found->second;
+    entry.used = presents_;
+    if (!entry.ready) UploadHd(entry);
+    if (!entry.ready) { ++hd_fallbacks_; return nullptr; }
+    view.Format = kBgra;
+    view.Texture2D.MipLevels = entry.texture.levels;
+    ++hd_hits_;
+    return entry.texture.res.Get();
+}
+
 void FillTextureView(const Tex& tx, const TextureDesc& d, D3D12_SHADER_RESOURCE_VIEW_DESC& sv) {
     sv.Format = tx.fmt;
     if (d.cube) {
@@ -1703,6 +1863,7 @@ struct StagePalette {
     uint32_t colours[256] = {};
     uint32_t va = 0;
     uint64_t hash = 0;
+    uint32_t entries = 0; // (DefJam) actual palette size belongs to the content identity.
 };
 
 // a P8 texture is decoded with the stage's palette: 256 colours, fewer by the size code in the top two bits
@@ -1716,8 +1877,10 @@ void ReadStagePalette(const State& s, int stage, const TextureDesc& d, StagePale
     palette.va = mem::VirtualFromPhysical(kernel::R32(header + kPaletteData));
     uint32_t size_code = kernel::R32(header + kPaletteCommon) >> kPaletteSizeShift;
     size_t bytes = (std::size(palette.colours) >> size_code) * sizeof(uint32_t);
+    palette.entries = uint32_t(bytes / sizeof(uint32_t)); // (DefJam)
     std::memcpy(palette.colours, kernel::HostPtr(palette.va), bytes);
-    palette.hash = Hash(palette.colours, sizeof(palette.colours));
+    // (DefJam) equal zero-padded colours with a different palette size still have a different content identity.
+    palette.hash = Hash(&palette.entries, sizeof(palette.entries), Hash(palette.colours, sizeof(palette.colours)));
 }
 
 // a texture in guest memory: made again when its layout changed, uploaded again when its bytes did
@@ -1744,10 +1907,18 @@ ID3D12Resource* D3D12Backend::BindGuestTexture(const State& s, int stage, const 
             g_perf.texups++;
             g_perf.texup_bytes += total;
             tx.sig = sig;
+            // (DefJam) hash the complete base level and palette when the original resource is uploaded.
+            if (hd_enabled_) HdIdentity(tx, d, fi, p, palette.va ? palette.colours : nullptr,
+                                       palette.entries);
             UploadTexture(tx, d, fi, p, palette.va ? palette.colours : nullptr, same);
         }
     }
     FillTextureView(tx, d, stages.sv[stage]);
+    // (DefJam) pending/missing/over-budget HD textures keep drawing their original without waiting.
+    if (hd_enabled_) if (auto* replacement = BindHd(tx, d, stages.sv[stage])) {
+        if (ext_) ext_->Sampled(d, nullptr, tx.flags, info);
+        return replacement;
+    }
     if (fi.depth) info.shadow = ShadowDepthKind(d.format);
     if (ext_) ext_->Sampled(d, nullptr, tx.flags, info);
     return tx.res.Get();
@@ -2959,6 +3130,9 @@ void D3D12Backend::ResetFrame() {
         g_perf.wait += PerfMs(perf_wait);
     }
     f.alloc->Reset();
+    // (DefJam) this frame's garbage is now past its GPU fence.
+    hd_bytes_ -= hd_retired_[frame_ % kFrames];
+    hd_retired_[frame_ % kFrames] = 0;
     f.garbage.clear();
     f.used = 0;
     f.srv = 0;
@@ -3015,6 +3189,8 @@ void LogPerf() {
 
 void D3D12Backend::Present(const Surface& front) {
     PerfScope perf_present{g_perf.present};
+    // (DefJam) finish uploads even after the player left the screen that requested them.
+    for (auto& [id, cached] : hd_cache_) if (!cached.ready) UploadHd(cached);
     if (cap_) {
         FinishCapture(front);
     } else if (g_capture.exchange(false) && CaptureOn()) {
@@ -3034,6 +3210,7 @@ void D3D12Backend::Present(const Surface& front) {
     bool vsync = app::Get().vsync;
     auto perf_swap = PerfClock::now();
     swap_->Present(vsync ? 1 : 0, !vsync && tearing_ ? DXGI_PRESENT_ALLOW_TEARING : 0);
+    if (!presents_) LOGI("defjam: first frame presented (hd=%u)", unsigned(hd_enabled_)); // (DefJam) boot timing
     g_perf.swap += PerfMs(perf_swap);
 
     presents_++;
@@ -3043,6 +3220,18 @@ void D3D12Backend::Present(const Surface& front) {
     ResetFrame();
     CountFps();
     if (diag::Perf()) LogPerf();
+    // (DefJam) resource allocation bytes, not a guess from PNG sizes; process-wide DXGI usage includes targets.
+    if (hd_enabled_ && diag::Perf() && presents_ % 60 == 0) {
+        ComPtr<IDXGIAdapter3> adapter;
+        DXGI_QUERY_VIDEO_MEMORY_INFO memory{};
+        if (SUCCEEDED(factory_->EnumAdapterByLuid(dev_->GetAdapterLuid(), IID_PPV_ARGS(&adapter))))
+            adapter->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &memory);
+        LOGI("hd: gpu %.1f/%llu MiB, %zu cached, %llu hits %llu fallbacks %llu evictions, dxgi %.1f/%.1f MiB",
+             hd_bytes_ / 1048576.0, (unsigned long long)(hd_budget_ >> 20), hd_cache_.size(),
+             (unsigned long long)hd_hits_, (unsigned long long)hd_fallbacks_, (unsigned long long)hd_evictions_,
+             memory.CurrentUsage / 1048576.0, memory.Budget / 1048576.0);
+        hd_hits_ = hd_fallbacks_ = hd_evictions_ = 0;
+    }
     ApplySettings();
 }
 

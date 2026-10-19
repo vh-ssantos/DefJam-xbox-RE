@@ -5,12 +5,13 @@
 # Pastas (a do zip descompactado é a raiz):
 #   <raiz>\DefJamFFNY.exe      o jogo, depois de compilado
 #   <raiz>\assets\*.iso        a sua .iso (o jogo lê dela)
+#   <raiz>\hd\                texturas HD opcionais, geradas somente da sua .iso
 #   <raiz>\source\             o código do port, as bibliotecas (deps) e o que a compilação gera
 #
 # Uso: Instalar.cmd (com janela). Instalar.cmd -Update: recompila depois de uma atualização, sem perguntar nada.
-# Instalar.cmd -Iso <arquivo> [-Auto]: já com a .iso escolhida; -Auto começa sozinho (instalação sem cliques).
+# Instalar.cmd -Iso <arquivo> [-Auto] [-HdTextures]: ISO escolhida; -Auto começa sozinho; HD é opcional.
 # DEFJAM_SETUP_LLVM=<pasta bin do LLVM>: usa esse clang em vez do do Visual Studio (testes do autor).
-param([switch]$Update, [string]$Iso, [switch]$Auto)
+param([switch]$Update, [string]$Iso, [switch]$Auto, [switch]$HdTextures)
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
 
@@ -120,7 +121,7 @@ public class DjProc {
 # --- janela
 $form = New-Object Windows.Forms.Form
 $form.Text = T 'Def Jam: Fight for NY - Instalador' 'Def Jam: Fight for NY - Setup'
-$form.Size = New-Object Drawing.Size(720, 560)
+$form.Size = New-Object Drawing.Size(720, 592)
 $form.StartPosition = 'CenterScreen'
 $form.FormBorderStyle = 'FixedDialog'
 $form.MaximizeBox = $false
@@ -154,28 +155,33 @@ $shortcut.Location = '16,172'; $shortcut.Size = '672,24'; $shortcut.Checked = $t
 $shortcut.Text = T 'Criar atalho na área de trabalho' 'Create a desktop shortcut'
 $form.Controls.Add($shortcut)
 
+$hdCheck = New-Object Windows.Forms.CheckBox
+$hdCheck.Location = '16,202'; $hdCheck.Size = '672,24'; $hdCheck.Checked = [bool]$HdTextures
+$hdCheck.Text = T 'Gerar texturas HD (mais ~6 GB e alguns minutos)' 'Generate HD textures (about 6 GB more and a few minutes)'
+$form.Controls.Add($hdCheck)
+
 $status = New-Object Windows.Forms.Label
-$status.Location = '16,204'; $status.Size = '672,22'
+$status.Location = '16,236'; $status.Size = '672,22'
 $form.Controls.Add($status)
 $bar = New-Object Windows.Forms.ProgressBar
-$bar.Location = '16,230'; $bar.Size = '672,22'; $bar.Maximum = 1000
+$bar.Location = '16,262'; $bar.Size = '672,22'; $bar.Maximum = 1000
 $form.Controls.Add($bar)
 $logBox = New-Object Windows.Forms.TextBox
-$logBox.Location = '16,260'; $logBox.Size = '672,200'
+$logBox.Location = '16,292'; $logBox.Size = '672,200'
 $logBox.Multiline = $true; $logBox.ReadOnly = $true; $logBox.ScrollBars = 'Vertical'
 $logBox.Font = New-Object Drawing.Font('Consolas', 8.5)
 $form.Controls.Add($logBox)
 
 $go = New-Object Windows.Forms.Button
-$go.Location = '16,470'; $go.Size = '160,36'
+$go.Location = '16,502'; $go.Size = '160,36'
 $go.Text = T 'Instalar' 'Install'
 $form.Controls.Add($go)
 $play = New-Object Windows.Forms.Button
-$play.Location = '184,470'; $play.Size = '160,36'; $play.Enabled = $false
+$play.Location = '184,502'; $play.Size = '160,36'; $play.Enabled = $false
 $play.Text = T 'Jogar' 'Play'
 $form.Controls.Add($play)
 $logs = New-Object Windows.Forms.Button
-$logs.Location = '528,470'; $logs.Size = '160,36'
+$logs.Location = '528,502'; $logs.Size = '160,36'
 $logs.Text = T 'Abrir registro' 'Open log'
 $form.Controls.Add($logs)
 
@@ -215,6 +221,10 @@ function Get-Sha1([byte[]]$b) {
 function Step-Game {
     $path = $isoBox.Text.Trim('"', ' ')
     if (-not $path -or -not (Test-Path $path)) { Fail (T 'Escolha a .iso do jogo primeiro.' 'Pick the game .iso first.') }
+    if ($hdCheck.Checked -and [IO.Path]::GetExtension($path) -ine '.iso') {
+        Fail (T 'Para gerar texturas HD, escolha a .iso original do jogo.' 'To generate HD textures, pick the original game .iso.')
+    }
+    $script:HdIso = $path
     New-Item -ItemType Directory -Force $Assets, (Join-Path $Source 'assets') | Out-Null
     if ($path -like '*.xbe') {
         $xbe = [IO.File]::ReadAllBytes($path)
@@ -241,6 +251,7 @@ function Step-Game {
         return
     }
     $dest = Join-Path $Assets (Split-Path $path -Leaf)
+    $script:HdIso = $dest
     if ((Test-Path $dest) -and (Get-Item $dest).Length -eq (Get-Item $path).Length) { return }
     Status (T 'Copiando a .iso para a pasta assets...' 'Copying the .iso to the assets folder...')
     $c = New-Object DjCopy
@@ -356,6 +367,61 @@ cmake --build out\build\release || exit /b 1
     $bar.Value = 1000
 }
 
+# O pack fica fora de source: atualizar o código e recompilar nunca o apaga.
+function Step-HdTextures {
+    if (-not $hdCheck.Checked -or $Update) { return }
+    $tool = Join-Path $Source 'out\build\release\defjam_hdpack.exe'
+    if (-not (Test-Path $tool)) {
+        Fail (T 'A ferramenta de texturas HD não foi compilada. Veja o registro.' 'The HD texture tool was not built. See the log.')
+    }
+    $pack = Join-Path $Root 'hd'
+    Status (T 'Gerando texturas HD da sua ISO (alguns minutos)...' 'Generating HD textures from your ISO (a few minutes)...')
+    $bar.Value = 0; $bar.Style = 'Marquee'
+    $r = New-Object DjProc
+    $r.Start($tool, "--iso `"$script:HdIso`" --output `"$pack`" --scale 4", $Root)
+    $start = Get-Date
+    $line = $null
+    function Read-HdProgress([string]$line) {
+        Add-Content -Path $LogFile -Value $line -Encoding UTF8
+        if ($line -match '^progress\s+(\d+)\s+(\d+)') {
+            $done = [long]$Matches[1]; $total = [long]$Matches[2]
+            $bar.Style = 'Continuous'
+            if ($total -gt 0) { $bar.Value = [Math]::Min(1000, [int](1000.0 * $done / $total)) }
+            $status.Text = (T 'Texturas HD' 'HD textures') + " $done/$total - " + ('{0:hh\:mm\:ss}' -f ((Get-Date) - $start))
+            # A retomada pode enfileirar milhares de linhas: continue pintando a janela durante a drenagem.
+            if (($done % 32) -eq 0) { [Windows.Forms.Application]::DoEvents() }
+        } elseif ($line -notmatch '^\s*$') {
+            $logBox.AppendText($line + "`r`n")
+        }
+    }
+    while (-not $r.P.HasExited) {
+        while ($r.Lines.TryDequeue([ref]$line)) { Read-HdProgress $line }
+        Pump
+    }
+    # WaitForExit também esvazia os eventos assíncronos de stdout/stderr antes da última leitura.
+    $r.P.WaitForExit()
+    while ($r.Lines.TryDequeue([ref]$line)) { Read-HdProgress $line }
+    $bar.Style = 'Continuous'
+    if ($r.P.ExitCode -ne 0) {
+        Fail (T 'Não consegui gerar o pacote HD. Os arquivos já gerados foram mantidos; veja o registro e tente de novo.' 'Could not generate the HD pack. Existing generated files were kept; see the log and try again.')
+    }
+    # Só habilita depois de gerar com sucesso; preserva todas as outras preferências.
+    $settings = Join-Path $Root 'settings.toml'
+    $config = if (Test-Path $settings) { [IO.File]::ReadAllText($settings) } else { '' }
+    # A preferência é da tabela raiz; não substitui uma chave homônima em seções do jogador.
+    $table = [regex]::Match($config, '(?m)^[ \t]*\[')
+    $rootLength = if ($table.Success) { $table.Index } else { $config.Length }
+    $rootConfig = $config.Substring(0, $rootLength)
+    $pattern = '(?m)^[ \t]*hd_textures[ \t]*=[^\r\n]*'
+    if ([regex]::IsMatch($rootConfig, $pattern)) {
+        $config = [regex]::Replace($rootConfig, $pattern, 'hd_textures = 1') + $config.Substring($rootLength)
+    }
+    else { $config = "hd_textures = 1`r`n" + $config }
+    [IO.File]::WriteAllText($settings, $config, (New-Object Text.UTF8Encoding($false)))
+    $bar.Value = 1000
+    Log (T 'Pacote HD gerado e ativado. Atualizações preservam a pasta hd.' 'HD pack generated and enabled. Updates preserve the hd folder.')
+}
+
 function Step-Shortcuts {
     $sh = New-Object -ComObject WScript.Shell
     $targets = @([Environment]::GetFolderPath('Programs'))
@@ -369,25 +435,26 @@ function Step-Shortcuts {
 }
 
 $go.Add_Click({
-    $go.Enabled = $false; $isoBtn.Enabled = $false
+    $go.Enabled = $false; $isoBtn.Enabled = $false; $hdCheck.Enabled = $false
     try {
         Log ("Def Jam: Fight for NY - instalacao em {0} ({1})" -f $Root, (Get-Date))
         if (-not $Update) { Step-Game }
         $vs = Step-Tools
         Step-Build $vs
+        Step-HdTextures
         if (-not $Update) { Step-Shortcuts }
         Status (T 'Pronto! Pode jogar.' 'Done! Ready to play.')
         $play.Enabled = $true
     } catch {
         if ("$_" -ne 'falhou') { Log "ERRO: $_"; $status.Text = T 'Não deu certo. Veja o registro.' 'It did not work. See the log.' }
-        $go.Enabled = $true; $isoBtn.Enabled = $true
+        $go.Enabled = $true; $isoBtn.Enabled = -not $Update; $hdCheck.Enabled = -not $Update
     }
 })
 
 if ($Iso) { $isoBox.Text = $Iso }
 if ($Auto -and -not $Update) { $form.Add_Shown({ $go.PerformClick() }) }
 if ($Update) {
-    $isoBox.Enabled = $false; $isoBtn.Enabled = $false; $shortcut.Enabled = $false
+    $isoBox.Enabled = $false; $isoBtn.Enabled = $false; $shortcut.Enabled = $false; $hdCheck.Enabled = $false
     $form.Add_Shown({ $go.PerformClick() })
 }
 [void]$form.ShowDialog()
