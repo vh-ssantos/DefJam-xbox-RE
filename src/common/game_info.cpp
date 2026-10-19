@@ -19,6 +19,7 @@
 #include "common/discord.h"
 #include "common/icon.h"
 #include "common/lang.h"
+#include "common/widescreen.h"
 #include "common/update.h"
 #include "common/occlusion.h"
 #include "gpu/backend.h"
@@ -216,6 +217,7 @@ const app::GameInfo app::kGame = {
                 {"language", nullptr, &defjam::g_language},
                 {"aspect_4x3", nullptr, &app::g_force_4x3},
                 {"skip_videos", nullptr, &defjam::g_skip_videos},
+                {"hud_widescreen", nullptr, &defjam::g_hud_wide},
                 {"pause_on_focus_loss", &defjam::g_pause_unfocused, nullptr},
                 {"discord", &defjam::g_discord, nullptr},
                 {"check_updates", &defjam::g_check_updates, nullptr}},

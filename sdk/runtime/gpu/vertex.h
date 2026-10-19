@@ -59,4 +59,9 @@ void FvfInputs(uint32_t fvf, VertexShader& out);
 // indices: the title's 16 bit indices, null for an unindexed draw
 bool Assemble(const State& s, uint32_t prim, uint32_t start, uint32_t count, const uint8_t* indices, Assembled& out);
 
+// (DefJam) the draw's first max vertices in draw order, read on the CPU: 16 float4 registers per vertex in out (the
+// ones no stream feeds hold 0,0,0,1), regs the registers fed; the vertex count read
+uint32_t ReadVertices(const State& s, uint32_t start, uint32_t count, const uint8_t* indices, uint32_t max,
+                      std::vector<float>& out, uint16_t& regs);
+
 }  // namespace gpu

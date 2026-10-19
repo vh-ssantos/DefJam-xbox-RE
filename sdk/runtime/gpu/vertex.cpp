@@ -440,6 +440,35 @@ void FvfInputs(uint32_t fvf, VertexShader& vs) {
     vs.stream_stride[0] = off;
 }
 
+uint32_t ReadVertices(const State& s, uint32_t start, uint32_t count, const uint8_t* ip, uint32_t max,
+                      std::vector<float>& out, uint16_t& regs) {
+    using namespace kernel;
+    regs = 0;
+    VertexShader fvf_layout;
+    const VertexShader* layout = PickLayout(s, fvf_layout);
+    if (!layout || !count) return 0;
+    uint32_t n = std::min(count, max);
+    out.assign(size_t(n) * 64, 0.0f);
+    for (uint32_t v = 0; v < n; v++)
+        for (int r = 0; r < 16; r++) out[(size_t(v) * 16 + r) * 4 + 3] = 1;
+    DrawRange d;
+    d.start = start;
+    d.ip = ip;
+    for (int r = 0; r < 16; r++) {
+        const auto& in = layout->inputs[size_t(r)];
+        if (in.stream < 0 || !in.type || in.type == kTypeNone) continue;
+        const auto& st = s.streams[size_t(in.stream)];
+        if (!st.vb) continue;
+        uint32_t data = mem::VirtualFromPhysical(R32(st.vb + kResData));
+        uint32_t stride = StrideOf(s, *layout, in);
+        const uint8_t* src = static_cast<const uint8_t*>(HostPtr(data + in.offset));
+        if (!src) continue;
+        regs |= uint16_t(1u << r);
+        for (uint32_t v = 0; v < n; v++) Convert(in.type, src + size_t(DrawVertex(s, d, v)) * stride, &out[(size_t(v) * 16 + r) * 4]);
+    }
+    return n;
+}
+
 bool Assemble(const State& s, uint32_t prim, uint32_t start, uint32_t count, const uint8_t* ip, Assembled& out) {
     ResetAssembled(out);
     if (!count || prim < 1 || prim > 10) return false;

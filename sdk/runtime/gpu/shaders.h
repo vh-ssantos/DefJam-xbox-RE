@@ -1,4 +1,5 @@
 #pragma once
+#include <array>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -42,6 +43,9 @@ PixelKey MakePixelKey(const State& s, const TexInfo tex[4]);
 // vertex program microcode to HLSL, regs is the bit mask of v registers the draw supplies
 // decode: VertexDecode per register, 4 bits each, for elements the input assembler hands over raw
 std::string VertexProgramHlsl(const std::vector<uint32_t>& program, uint16_t regs, uint64_t decode = 0);
+// (DefJam) the program run on the CPU for one vertex (v: 16 float4, c: the 192 constants in hardware order): oPos
+void EvalPosition(const std::vector<uint32_t>& program, const std::array<std::array<float, 4>, 192>& c, const float* v,
+                  uint16_t regs, float pos[4]);
 // fixed function vertex state a shader is built for
 struct FixedKey {
     uint32_t light = 0;    // bit 0 lighting, 1 specular, 2 local viewer, 3 normalize, then D3DMCS 2 bits each from bit 8:
@@ -96,6 +100,7 @@ struct DrawConstants {
     float mat[5][4];     // material diffuse, ambient, specular, emissive, power
     float amb[4];        // D3DRS_AMBIENT
     float lt[8][7][4];   // per light: diffuse, specular, ambient, position range, direction falloff, attenuation, cos theta/2 phi/2
+    float place[4];      // (DefJam) x scale and offset applied in clip space, x 0 leaves the draw where it is
 };
 
 }  // namespace gpu

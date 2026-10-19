@@ -24,6 +24,7 @@
 #include "common/discord.h"
 #include "common/lang.h"
 #include "common/menu.h"
+#include "common/widescreen.h"
 
 #include <string>
 
@@ -351,25 +352,50 @@ DEFJAM_PRESENCE(00046410, "Modo Battle")        // StartBattleMode
 DEFJAM_PRESENCE(00046450, "Modo historia")      // StartStoryMode
 DEFJAM_PRESENCE(00046E40, "Lutando")            // StartGame (a luta começa)
 
-// Parâmetros da câmera 3D: 0x1A4E0(modo, &fov, &proporção, &perto, &longe), thiscall. Modo 0 (o de jogo) devolve o
-// campo de visão horizontal em graus e a proporção 4:3 fixa; a projeção sai com xs = 1/tan(fov/2), ys = xs * proporção.
-// Em saída widescreen isso esticava tudo. Aqui, "Hor+": a mesma visão vertical e mais visão nas laterais, na medida
-// do 16:9 (o modo 1 do jogo é o 16:9 de cinema, com faixas em cima e embaixo, por isso não serve para lutar).
+// Passo da luta (só roda dentro de uma luta; achado pelo port do vyanhursky): o placar 2D vai para as bordas
+X86_EXTERN_FUNC(__imp__sub_00087700);
+X86_FUNC(sub_00087700) {
+    defjam::MatchTick();
+    __imp__sub_00087700(ctx, base);
+}
+
+// Parâmetros da câmera 3D: 0x1A4E0(modo, &fov, &proporção, &y, &altura), thiscall (this = a visão: fov +0xC, x +0x14,
+// y +0x18, largura +0x1C, altura +0x20). Modos do jogo: 0 o normal (fov horizontal em graus, proporção 4:3 fixa),
+// 1 as cenas da história (16:9 dentro de 640x360, faixas pretas em cima e embaixo), 2 proporção = largura/altura
+// (visões num pedaço da tela). O renderer mostra 16:9 esticando o quadro de 640x480; aqui:
+//   - modo 0 em tela cheia: "Hor+", a mesma visão vertical e mais visão nas laterais;
+//   - modo 1: a cena em 16:9 de verdade, na altura toda (sem as faixas);
+//   - visões num pedaço da tela: ficam 4:3, e o widescreen.cpp centraliza o retângulo junto com o 2D.
+// Mapa do port do vyanhursky (DefJamFFNY-recomp, docs/widescreen), o mesmo XBE.
 X86_EXTERN_FUNC(__imp__sub_0001A4E0);
 X86_FUNC(sub_0001A4E0) {
+    const uint32_t view = ctx.ecx;
     const uint32_t mode = ::kernel::R32(ctx.esp + 4);
     const uint32_t fov_out = ::kernel::R32(ctx.esp + 8), aspect_out = ::kernel::R32(ctx.esp + 12);
+    const uint32_t y_out = ::kernel::R32(ctx.esp + 16), h_out = ::kernel::R32(ctx.esp + 20);
     __imp__sub_0001A4E0(ctx, base);
     static const bool off = std::getenv("DEFJAM_NO_CAM_FIX") != nullptr;
-    if (mode != 0 || off || !app::Widescreen() || !fov_out || !aspect_out) return;
-    const app::Mode m = app::Output();
-    const float target = m.height ? std::max(float(m.width) / float(m.height), 4.0f / 3.0f) : 16.0f / 9.0f;
-    float fov, aspect;
-    std::memcpy(&fov, ::kernel::HostPtr(fov_out), 4);
-    std::memcpy(&aspect, ::kernel::HostPtr(aspect_out), 4);
+    if (mode > 2 || off || !app::Widescreen() || !view || !fov_out || !aspect_out || !y_out || !h_out) return;
+    auto rf = [](uint32_t va) { float v; std::memcpy(&v, ::kernel::HostPtr(va), 4); return v; };
+    auto wf = [](uint32_t va, float v) { std::memcpy(::kernel::HostPtr(va), &v, 4); };
+    const float target = defjam::ScreenAspect();  // a mesma do quadro apresentado (o renderer mostra 16:9)
+    const float k = (4.0f / 3.0f) / target;
+    const float vx = rf(view + 0x14), vy = rf(view + 0x18), vw = rf(view + 0x1C), vh = rf(view + 0x20);
+    const bool full = vx <= 0.5f && vw >= 639.5f;
+    if (mode == 1) {
+        // a cena em 16:9 na altura toda (16:9 é a proporção que ela foi feita)
+        wf(y_out, vy);
+        wf(h_out, vh);
+        return;
+    }
+    if (mode == 2) {
+        if (full && vh > 1.0f) wf(aspect_out, vw / vh / k);  // esticada na tela: compensa
+        return;
+    }
+    if (!full) return;
+    const float fov = rf(fov_out), aspect = rf(aspect_out);
     if (!(fov > 1.0f && fov < 170.0f) || !(aspect > 1.0f && aspect < 1.5f)) return;
     constexpr float kDeg = 3.14159265f / 180.0f;
-    const float wide = 2.0f * std::atan(std::tan(fov * kDeg * 0.5f) * target / aspect) / kDeg;
-    std::memcpy(::kernel::HostPtr(fov_out), &wide, 4);
-    std::memcpy(::kernel::HostPtr(aspect_out), &target, 4);
+    wf(fov_out, 2.0f * std::atan(std::tan(fov * kDeg * 0.5f) * target / aspect) / kDeg);
+    wf(aspect_out, target);
 }

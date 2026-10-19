@@ -89,6 +89,16 @@ public:
     virtual void Constants(float (*/*vsc*/)[4], float* /*ext*/, const Target* /*rt*/, uint32_t /*src_blend*/) {}
     // a target with range other than 1 is read, copied or presented
     virtual void Resolve(Context&, Target&) {}
+    // (DefJam) where a draw lands, worked out on the CPU when Placing(): kind 1 flat (every position with w 1, a 2D
+    // draw), 2 with depth (3D), 0 not known; x0..y1 its bounds in guest pixels of a target gw x gh; tex_w and tex_h
+    // stage 0's texture, 0 without one. Place sets place[0] (x scale) and place[1] (offset) in clip space, 0 0 leaves it
+    struct Footprint {
+        int kind = 0;
+        float x0 = 0, x1 = 0, y0 = 0, y1 = 0;
+        uint32_t tex_w = 0, tex_h = 0;
+    };
+    virtual bool Placing() const { return false; }
+    virtual void Place(const State&, const Target* /*rt*/, uint32_t /*gw*/, uint32_t /*gh*/, const Footprint&, float* /*place*/) {}
 };
 
 inline std::unique_ptr<Extension> g_extension;

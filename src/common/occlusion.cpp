@@ -21,6 +21,7 @@
 #include <thread>
 
 #include "common/occlusion.h"
+#include "common/widescreen.h"
 #include "core/log.h"
 #include "gpu/ext.h"
 #include "gpu/state.h"
@@ -280,6 +281,12 @@ public:
         if (scene_rt_ != rt || (zen && zfunc != kZAlways)) return false;
         done_ = true;
         return Run(ctx, s, *rt, *ds, mode);
+    }
+
+    // 2D na proporção certa em 16:9 (widescreen.cpp)
+    bool Placing() const override { return true; }
+    void Place(const gpu::State& s, const gpu::Target* rt, uint32_t gw, uint32_t gh, const Footprint& f, float* place) override {
+        PlaceDraw(s, rt, gw, gh, f, place);
     }
 
     // o Def Jam limpa a profundidade (flag 0x1 do Xbox) antes do HUD: é aí que a oclusão entra, com a cena pronta

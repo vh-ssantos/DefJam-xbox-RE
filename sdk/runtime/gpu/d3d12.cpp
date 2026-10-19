@@ -692,6 +692,11 @@ private:
     uint32_t bb_w_ = 0;
     uint32_t bb_h_ = 0;
     float scale_ = 1.0f;
+    // (DefJam) the draw's x placement in clip space (scale, offset), set by the extension; vertices read for it
+    float place_[4] = {};
+    std::vector<float> place_verts_;
+    void PlaceDraw(const State& s, const DrawShaders& sh, const Assembled& a, uint32_t start, uint32_t count,
+                   const uint8_t* ip, GuestExtent size);
     // surfaces locked without a wait: copies in flight, the newest finished one goes to guest memory
     struct Late {
         ComPtr<ID3D12Resource> rb[kFrames];
@@ -2190,6 +2195,8 @@ void D3D12Backend::UploadConstants(const State& s, const DrawShaders& sh, const 
         FillTransformConstants(s, size, c);
         FillLightConstants(s, sh.fk, c);
     }
+    c.place[0] = place_[0];
+    c.place[1] = place_[1];
     std::memcpy(dc.cpu, &c, sizeof(c));
     cl_->SetGraphicsRootConstantBufferView(0, vc.gpu);
     cl_->SetGraphicsRootConstantBufferView(1, dc.gpu);
@@ -2333,6 +2340,12 @@ void D3D12Backend::SetViewportScissor(const State& s, uint32_t gw) {
         y0 = std::max(y0, LONG(s.scissors[1] * sc));
         x1 = std::min(x1, LONG(s.scissors[2] * sc));
         y1 = std::min(y1, LONG(s.scissors[3] * sc));
+    }
+    // (DefJam) a placed draw keeps its clip rectangle where the draw itself lands
+    if (place_[0] != 0) {
+        auto px = [&](LONG x) { return LONG(std::lround(x * place_[0] + W * 0.5f * (1 - place_[0] + place_[1]))); };
+        x0 = px(x0);
+        x1 = px(x1);
     }
     D3D12_RECT rect{std::clamp<LONG>(x0, 0, LONG(W)), std::clamp<LONG>(y0, 0, LONG(H)),
                     std::clamp<LONG>(x1, 0, LONG(W)), std::clamp<LONG>(y1, 0, LONG(H))};
@@ -2501,6 +2514,8 @@ void D3D12Backend::Draw(const State& s, uint32_t prim, uint32_t start, uint32_t 
     GuestExtent size;
     SurfaceSize(bound_rt_ ? s.rt : s.zs, size.w, size.h);
     DrawConstants c{};
+    place_[0] = place_[1] = 0;
+    if (ext_ && ext_->Placing() && bound_rt_) PlaceDraw(s, sh, a, start, count, indices, size);
     UploadConstants(s, sh, k, stages, size, c);
 
     if (cap_) {
@@ -2518,6 +2533,50 @@ void D3D12Backend::Draw(const State& s, uint32_t prim, uint32_t start, uint32_t 
     uint32_t query = BeginCountedDraw(s);
     DrawGeometry(a);
     EndCountedDraw(query);
+}
+
+// (DefJam) where the draw lands on the CPU, for the extension to place it: vertex programs and screen space vertices
+void D3D12Backend::PlaceDraw(const State& s, const DrawShaders& sh, const Assembled& a, uint32_t start, uint32_t count,
+                             const uint8_t* ip, GuestExtent size) {
+    constexpr uint32_t kMaxPlaced = 2048;  // vertices read for the bounds
+    Extension::Footprint f;
+    TextureDesc d;
+    if (s.textures[0] && Describe(s.textures[0], d)) {
+        f.tex_w = d.width;
+        f.tex_h = d.height;
+    }
+    if (sh.prog || a.pretransformed) {
+        uint16_t regs = 0;
+        float p[4];
+        auto pos = [&](uint32_t v) {
+            const float* in = &place_verts_[size_t(v) * 64];
+            if (sh.prog) EvalPosition(s.vs->program, s.vsc, in, regs, p);
+            else std::memcpy(p, in, sizeof(p));
+        };
+        // one vertex tells a 3D draw, which is left at that
+        uint32_t n = ReadVertices(s, start, count, ip, 1, place_verts_, regs);
+        if (n) {
+            pos(0);
+            f.kind = sh.prog && std::fabs(p[3] - 1) > 1e-4f ? 2 : 1;
+        }
+        if (f.kind == 1) {
+            n = ReadVertices(s, start, count, ip, kMaxPlaced, place_verts_, regs);
+            f.x0 = f.y0 = 1e30f;
+            f.x1 = f.y1 = -1e30f;
+            for (uint32_t v = 0; v < n; v++) {
+                pos(v);
+                if (sh.prog && std::fabs(p[3] - 1) > 1e-4f) {
+                    f.kind = 2;
+                    break;
+                }
+                f.x0 = std::min(f.x0, p[0]);
+                f.x1 = std::max(f.x1, p[0]);
+                f.y0 = std::min(f.y0, p[1]);
+                f.y1 = std::max(f.y1, p[1]);
+            }
+        }
+    }
+    ext_->Place(s, bound_rt_, size.w, size.h, f, place_);
 }
 
 // a guest rect scaled to the target and clamped to it

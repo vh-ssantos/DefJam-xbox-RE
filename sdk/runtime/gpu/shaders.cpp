@@ -5,6 +5,7 @@
 #include <bit>
 #include <cstdarg>
 #include <cstdio>
+#include <cmath>
 #include <cstring>
 
 namespace gpu {
@@ -53,6 +54,7 @@ const char* kCommonTail = R"(    float4 spread[4];
     float4 mat[5];
     float4 amb;
     float4 lt[56];
+    float4 place;
 };
 )";
 
@@ -226,6 +228,7 @@ const char* kVsEpilogue = R"(
     if (surf.w == 0 && abs(p.x - (surf.x - 0.5)) < 1e-3) p.x = surf.x;
     if (surf.w == 0 && abs(p.y - (surf.y - 0.5)) < 1e-3) p.y = surf.y;
     q.x = p.x * 2 / surf.x - 1;
+    if (place.x != 0) q.x = q.x * place.x + place.y;
     q.y = 1 - p.y * 2 / surf.y;
     q.z = p.z * surf.z;
     q.xyz *= p.w;
@@ -662,6 +665,117 @@ std::string VertexProgramHlsl(const std::vector<uint32_t>& prog, uint16_t regs, 
     return s;
 }
 
+namespace {
+using F4 = std::array<float, 4>;
+
+float MacMul(float a, float b) { return a == 0 || b == 0 ? 0 : a * b; }
+float MagClamp(float v) {
+    float m = std::clamp(std::fabs(v), 5.42101e-20f, 1.84467e+19f);
+    return v < 0 ? -m : m;
+}
+}  // namespace
+
+void EvalPosition(const std::vector<uint32_t>& prog, const std::array<std::array<float, 4>, 192>& c, const float* v,
+                  uint16_t regs, float pos[4]) {
+    F4 R[13] = {};  // R12 is oPos
+    int a0 = 0;
+    auto src = [&](const Tok& k, int which) {
+        uint32_t neg, sw[4], reg, mux;
+        if (which == 0) {
+            neg = k.f(1, 8, 1);
+            sw[0] = k.f(1, 6, 2), sw[1] = k.f(1, 4, 2), sw[2] = k.f(1, 2, 2), sw[3] = k.f(1, 0, 2);
+            reg = k.f(2, 28, 4), mux = k.f(2, 26, 2);
+        } else if (which == 1) {
+            neg = k.f(2, 25, 1);
+            sw[0] = k.f(2, 23, 2), sw[1] = k.f(2, 21, 2), sw[2] = k.f(2, 19, 2), sw[3] = k.f(2, 17, 2);
+            reg = k.f(2, 13, 4), mux = k.f(2, 11, 2);
+        } else {
+            neg = k.f(2, 10, 1);
+            sw[0] = k.f(2, 8, 2), sw[1] = k.f(2, 6, 2), sw[2] = k.f(2, 4, 2), sw[3] = k.f(2, 2, 2);
+            reg = k.f(2, 0, 2) << 2 | k.f(3, 30, 2), mux = k.f(3, 28, 2);
+            uint32_t ilu = k.f(1, 25, 3);
+            if (ilu >= 2 && ilu <= 6) sw[1] = sw[2] = sw[3] = sw[0];
+        }
+        F4 b{};
+        if (mux == 1) {
+            b = R[std::min<uint32_t>(reg, 12)];
+        } else if (mux == 2) {
+            uint32_t r = k.f(1, 9, 4);
+            if ((regs >> r) & 1) b = {v[r * 4], v[r * 4 + 1], v[r * 4 + 2], v[r * 4 + 3]};
+            else b = r == 3 ? F4{1, 1, 1, 1} : F4{0, 0, 0, 1};
+        } else {
+            int cr = int(k.f(1, 13, 8));
+            if (k.f(3, 1, 1)) cr = std::clamp(a0 + cr, 0, 191);
+            b = c[size_t(std::min(cr, 191))];
+        }
+        F4 o;
+        for (int i = 0; i < 4; i++) o[i] = neg ? -b[sw[i]] : b[sw[i]];
+        return o;
+    };
+    for (size_t n = 0; n + 4 <= prog.size(); n += 4) {
+        Tok k{&prog[n]};
+        uint32_t mac = k.f(1, 21, 4), ilu = k.f(1, 25, 3);
+        if (mac || ilu) {
+            F4 a = src(k, 0), b = src(k, 1), cc = src(k, 2), mr{}, ir{};
+            switch (mac) {
+                case 1: case 13: mr = a; break;
+                case 2: for (int i = 0; i < 4; i++) mr[i] = MacMul(a[i], b[i]); break;
+                case 3: for (int i = 0; i < 4; i++) mr[i] = a[i] + cc[i]; break;
+                case 4: for (int i = 0; i < 4; i++) mr[i] = MacMul(a[i], b[i]) + cc[i]; break;
+                case 5: mr.fill(a[0] * b[0] + a[1] * b[1] + a[2] * b[2]); break;
+                case 6: mr.fill(a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + b[3]); break;
+                case 7: mr.fill(a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3]); break;
+                case 8: mr = {1, a[1] * b[1], a[2], b[3]}; break;
+                case 9: for (int i = 0; i < 4; i++) mr[i] = std::min(a[i], b[i]); break;
+                case 10: for (int i = 0; i < 4; i++) mr[i] = std::max(a[i], b[i]); break;
+                case 11: for (int i = 0; i < 4; i++) mr[i] = a[i] < b[i] ? 1.0f : 0.0f; break;
+                case 12: for (int i = 0; i < 4; i++) mr[i] = a[i] >= b[i] ? 1.0f : 0.0f; break;
+                default: break;
+            }
+            float x = cc[0];
+            switch (ilu) {
+                case 1: ir = cc; break;
+                case 2: ir.fill(1.0f / x); break;
+                case 3: ir.fill(MagClamp(1.0f / x)); break;
+                case 4: ir.fill(x == 0 ? INFINITY : 1.0f / std::sqrt(std::fabs(x))); break;
+                case 5: { float w = std::floor(x); ir = {std::exp2(w), x - w, std::exp2(x), 1}; break; }
+                case 6: {
+                    float m = std::fabs(x), l2 = std::log2(m), e = std::floor(l2);
+                    ir = m == 0 ? F4{-INFINITY, 1, -INFINITY, 1} : F4{e, m / std::exp2(e), l2, 1};
+                    break;
+                }
+                case 7: {
+                    float d = std::max(cc[0], 0.0f);
+                    float sp = std::exp2(std::clamp(cc[3], -127.99609375f, 127.99609375f) * std::log2(std::max(cc[1], 0.0f)));
+                    ir = {1, d, d > 0 ? sp : 0, 1};
+                    break;
+                }
+                default: break;
+            }
+            uint32_t r = k.f(3, 20, 4);
+            auto write = [&](uint32_t dst, uint32_t m, const F4& val) {
+                if (!m || dst > 12) return;
+                for (int i = 0; i < 4; i++)
+                    if (m & (8u >> i)) R[dst][i] = val[i];
+            };
+            if (mac == 13) {
+                a0 = int(std::floor(mr[0] + 1e-3f));
+            } else if (mac) {
+                uint32_t m = k.f(3, 24, 4);
+                if (ilu && r == 1) m = 0;
+                write(r, m, mr);
+            }
+            if (ilu) write(mac ? 1 : r, k.f(3, 16, 4), ir);
+            uint32_t omask = k.f(3, 12, 4);
+            bool use_ilu = k.f(3, 2, 1) == 1;
+            if (omask && k.f(3, 11, 1) && ((use_ilu && ilu) || (!use_ilu && mac && mac != 13)) && (k.f(3, 3, 8) & 0xF) == 0)
+                write(12, omask, use_ilu ? ir : mr);
+        }
+        if (k.f(3, 0, 1)) break;
+    }
+    for (int i = 0; i < 4; i++) pos[i] = R[12][i];
+}
+
 FixedKey MakeFixedKey(const State& s) {
     FixedKey f;
     if (s.rs[kRsLighting]) {
@@ -778,6 +892,7 @@ std::string FixedVertexHlsl(uint16_t regs, bool pretransformed, uint64_t decode,
     float2 sp = (float2(cp.x, -cp.y) / cp.w + 1) * 0.5 * surf.xy;
     if (surf.w == 0 && abs(sp.x - (surf.x - 0.5)) < 1e-3) cp.x = cp.w;
     if (surf.w == 0 && abs(sp.y - (surf.y - 0.5)) < 1e-3) cp.y = -cp.w;
+    if (place.x != 0) cp.x = cp.x * place.x + place.y * cp.w;
     o.pos = cp;
     o.d0 = saturate(oD0);
     o.d1 = saturate(oD1);
