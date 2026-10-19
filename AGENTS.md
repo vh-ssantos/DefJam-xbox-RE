@@ -36,8 +36,10 @@ x86 -> C++, D3D8 -> D3D12, DirectSound -> XAudio2. O port de PS2 (E:\Projetos\De
   CMake embute num .rc gerado na pasta de build (nada do jogo vai para o git).
 
 ## Pular abertura e pausar sem foco (src/common/menu.cpp)
-- skip_intros: hook em 0x1E460 (define o nome do vídeo, this+841); para movies/eagames, movies/thx e movies/intro o
-  PadHook aperta START 0.5 s depois. Título em ~18 s. settings-teste.toml usa skip_intros = false (roteiros).
+- skip_videos (0 não, 1 só logos = padrão, 2 logos e filme): hook em 0x1E460 (define o nome do vídeo, this+841);
+  movies/eagames e movies/thx são "logo", movies/intro é o filme; o PadHook aperta START 0.5 s depois. Título em
+  ~18 s. settings-teste.toml usa skip_videos = 0 (roteiros).
+- Pausa sem foco só na tela cheia EXCLUSIVA (janela e sem bordas seguem rodando, pedido do usuário).
 - pause_on_focus_loss: PadHook (thread do jogo) espera enquanto a janela não tem foco; audio::g_paused (novo, SDK)
   faz o mixer entregar silêncio sem avançar as vozes. Desligado quando DEFJAM_WINDOW_MONITOR existe (testes).
 
@@ -153,7 +155,7 @@ x86 -> C++, D3D8 -> D3D12, DirectSound -> XAudio2. O port de PS2 (E:\Projetos\De
   do exe (CMakeLists DEFJAM_VERSION) -> menu "Versão: Nova (A atualiza)": baixa o primeiro .zip da release, renomeia o
   exe em uso para .old e extrai DefJamFFNY.exe com tar.exe. DEFJAM_UPDATE_REPO=dono/repo para testar.
   Para publicar: subir DEFJAM_VERSION, rodar release.ps1 e criar a release com tag vX.Y.Z e o zip anexado.
-- Discord (src/common/discord.cpp): IPC local, falta o Application ID (kAppId = 0 desliga). Presença por comandos
+- Discord (src/common/discord.cpp): IPC local (pipe discord-ipc-N), app ID 1561502123772870717 (kAppId = 0 desliga). Presença por comandos
   de script: StartMainMenu 0x46610, StartBattleMode 0x46410, StartStoryMode 0x46450, StartGame 0x46E40.
 
 ## Widescreen sem esticar (v0.1.1)
@@ -176,3 +178,23 @@ x86 -> C++, D3D8 -> D3D12, DirectSound -> XAudio2. O port de PS2 (E:\Projetos\De
 4. HUD/placar da luta sem esticar em 16:9 (estilo src/game/hud.cpp do BLACK).
 5. Teclado e mouse. 6. Testar o resto do jogo. 7. Texturas HD (depois do 100%).
 - Chiado de áudio relatado: era o fone do usuário (descartado).
+
+## Releases publicadas
+- v0.1.0 (2026-10-18): primeira pública. v0.1.1 (2026-10-18): Hor+ 3D, idioma PT/EN (src/common/lang.cpp, automático
+  por GetUserDefaultUILanguage, também na janela de escolher a ISO), proporção 4:3, pular vídeos em 3 modos, pausa só
+  na tela cheia exclusiva, cheats com respostas claras, limitador suave. SHA-256 do zip v0.1.1: 1F4B3EF0...DEFDB06A.
+- Divulgado no Reddit (r/decomps). Feedback: tela esticada (3D resolvido, 2D pendente), primeira tela em português
+  (resolvido com o idioma), pedidos de Linux e de online.
+
+## Outro port do mesmo jogo: vyanhursky/DefJamFFNY-recomp (visto em 2026-10-19)
+- Também Xbox USA, mas outra ferramenta (xboxrecomp do sp00nz, x86 -> C), começou 2026-10-04, v0.10.2, ~80 estrelas,
+  CI e testes. Windows (D3D11), macOS Apple Silicon e Linux/Steam Deck (Vulkan) nativos; instalador que RECOMPILA o
+  jogo na máquina do jogador (não distribui exe com código do jogo); widescreen com HUD e menus sem esticar (beta);
+  texturas HD 4x geradas localmente; remapeamento de controle e teclado; 4 jogadores locais; overlay F1 e launcher;
+  menu de desenvolvedor da EA restaurado; gravador de testes (F9). Sem rede.
+- O que só o nosso tem (até agora): oclusão de ambiente SSAO/GTAO, idioma PT-BR, cheats do jogo no menu, nome do
+  User ID pelo teclado, Discord, atualização automática dentro do jogo, baixar e jogar sem compilar, D3D12.
+- Ideias a considerar dele: HUD/menus sem esticar, texturas HD geradas da própria ISO, menu de dev, Linux nativo.
+  Diferencial possível nosso: online (ele não tem rede).
+- Atenção: o nosso zip leva um exe com o código do jogo recompilado; o dele evita isso de propósito (compila no
+  setup). Avaliar com o usuário se vale mudar a distribuição.
