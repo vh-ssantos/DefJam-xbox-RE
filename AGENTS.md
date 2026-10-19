@@ -165,3 +165,14 @@ x86 -> C++, D3D8 -> D3D12, DirectSound -> XAudio2. O port de PS2 (E:\Projetos\De
 - Opção "aspect_4x3" (app::g_force_4x3, SDK): Widescreen() falso -> imagem 4:3 com faixas; vale ao reiniciar.
 - Áudio: diagnosticado com DEFJAM_DSTRACE (pico, estouros, fila vazia, trechos velhos no buffer 5.1, saltos):
   tudo limpo aqui; limitador suave acima de 0.9 no Render.
+
+## Pendências (atualizado 2026-10-18, depois da v0.1.1 e do feedback do Reddit)
+1. Modo "Híbrido" de proporção: quadros só 2D (menus) em 4:3 com faixas, quadros com cena 3D (projeção perspectiva
+   da câmera / desenhos com zwrite) em 16:9 Hor+. Decidir no BlitFrame por quadro.
+2. README: seção Linux / Steam Deck via Proton (o port do SvR2011 roda assim); pedir testes à comunidade.
+3. Online amigo x amigo: o runtime tem System Link pela internet (setting join_ip, feito para o co-op do BLACK).
+   No Def Jam os símbolos de rede (XNet*, sockets, XOnline*) estão 0 no config: investigar se o jogo tem modo System
+   Link (strings "online/...", XOnlineStartup) e ligar. Host + IP; Radmin VPN/ZeroTier ou porta aberta.
+4. HUD/placar da luta sem esticar em 16:9 (estilo src/game/hud.cpp do BLACK).
+5. Teclado e mouse. 6. Testar o resto do jogo. 7. Texturas HD (depois do 100%).
+- Chiado de áudio relatado: era o fone do usuário (descartado).
