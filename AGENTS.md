@@ -198,3 +198,18 @@ x86 -> C++, D3D8 -> D3D12, DirectSound -> XAudio2. O port de PS2 (E:\Projetos\De
   Diferencial possível nosso: online (ele não tem rede).
 - Atenção: o nosso zip leva um exe com o código do jogo recompilado; o dele evita isso de propósito (compila no
   setup). Avaliar com o usuário se vale mudar a distribuição.
+
+## Widescreen completo (2026-10-19, depois da v0.1.1)
+- 2D: o renderer (SDK, marcado DefJam) calcula na CPU onde cada desenho cai: lê os vértices (gpu::ReadVertices),
+  roda o programa de vértice só para oPos (gpu::EvalPosition) ou usa a posição XYZRHW; w = 1 em todos = 2D. Chama
+  Extension::Place, que devolve escala/deslocamento em x no espaço de recorte (DrawConstants::place, aplicado no fim
+  do shader de vértice; o recorte/scissor acompanha). Política em src/common/widescreen.cpp: 2D centralizado (k =
+  (4/3)/(16/9)); tela inteira sem textura ou com textura <= 128 fica esticada (escurecer/tingir); na luta (passo
+  0x87700 rodou há < 250 ms) peças à esquerda de 300 vão para a borda esquerda e à direita de 340 para a direita;
+  3D com viewport menor que a tela (lutador num quadro de menu) é centralizado junto. Custo medido: 60 fps, ~2 ms de
+  renderer por quadro na luta. DEFJAM_NO_HUD_FIX desliga; opção hud_widescreen no settings.
+- Câmera 0x1A4E0 (this = visão: fov +0xC, x +0x14, y +0x18, w +0x1C, h +0x20; args modo, &fov, &proporção, &y, &h):
+  modo 0 tela cheia = Hor+; modo 1 (cenas) = y/h originais (sem faixas, 16:9 de fato); modo 2 em tela cheia =
+  proporção / k; sub-visões ficam 4:3. ScreenAspect() = 16:9 (o mesmo do BlitFrame), não a proporção do monitor.
+- Fonte do mapa: docs/widescreen do vyanhursky/DefJamFFNY-recomp (mesmo XBE, MIT). Creditado no README.
+- Próximo: fundo lateral (hoje preto nos menus; o dele usa desfoque), canvas mais largo (hoje 640*escala esticado).

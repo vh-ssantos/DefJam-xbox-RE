@@ -33,7 +33,8 @@ Este port é **100% gratuito** e só é distribuído **aqui**:
 
 ## O que tem a mais que no Xbox
 
-- **Resolução do seu monitor** (ou qualquer outra), **widescreen 16:9 sem esticar os lutadores** (câmera corrigida) e **supersampling** até 300%.
+- **Resolução do seu monitor** (ou qualquer outra) e **supersampling** até 300%.
+- **Widescreen 16:9 de verdade**: a luta mostra mais da arena, os **menus e o placar ficam na proporção certa** (nada esticado; na luta o placar de cada jogador vai para a borda dele) e as **cenas da história ocupam a tela toda**, sem as faixas pretas.
 - **60 quadros por segundo** cravados.
 - **Oclusão de ambiente** (SSAO / GTAO): sombras de contato que dão profundidade à cena.
 - **Filtro anisotrópico** até 16x.
@@ -90,7 +91,7 @@ Teclado e mouse (mapeamento completo) ficam para uma próxima versão.
 | Idioma / Language | Automático (pelo Windows), Português ou English |
 | Modo de tela | Tela cheia, tela cheia sem bordas ou janela |
 | Resolução | Todas as que o seu monitor aceita |
-| Proporção | 16:9 (tela cheia; a câmera 3D é corrigida para não esticar os lutadores, só os menus e o placar 2D ficam esticados) ou 4:3 original (nada esticado, com faixas pretas). Vale ao reiniciar |
+| Proporção | 16:9 (luta e cenas na tela toda; menus e placar na proporção certa) ou 4:3 original (com faixas pretas nas laterais). Vale ao reiniciar |
 | Escala de renderização | 50% a 300%. Acima de 100% é supersampling (imagem mais limpa) |
 | Filtro anisotrópico | Texturas nítidas de longe |
 | V-Sync | Sincronia vertical |
@@ -110,6 +111,17 @@ Tudo fica salvo no `settings.toml` ao lado do exe.
 - Windows 10 ou 11, 64 bits.
 - Placa de vídeo com Direct3D 12.
 - Uns 3 GB livres para a ISO.
+
+### Linux e Steam Deck (experimental)
+
+Ainda não há versão nativa, mas o port deve rodar pelo **Proton** (a camada da Valve que roda jogos de Windows),
+que traduz o Direct3D 12 com o vkd3d-proton. Ainda não foi testado pelo autor:
+
+1. Descompacte o zip numa pasta e coloque a sua `.iso` em `assets`.
+2. Na Steam: **Adicionar um jogo → Adicionar um jogo que não é da Steam**, escolha o `DefJamFFNY.exe`.
+3. Nas propriedades dele: **Compatibilidade → Forçar uma ferramenta de compatibilidade**, escolha o Proton mais novo.
+
+Se testar, conte como foi num [issue](../../issues) (funcionou? FPS? som? controle?).
 
 ## Problemas?
 
@@ -144,6 +156,9 @@ ligação com elas nem com a Microsoft, e não é endossado por elas. Não distr
   com ajustes deste projeto marcados com `(DefJam)`.
 - Ideias do port do [BLACK](https://github.com/TGP482/BLACK-XBERecomp) (menu de opções, oclusão de ambiente, pausar
   sem foco, pular vídeos), reimplementadas aqui.
+- O mapa do widescreen (câmera, cenas, placar, passo da luta) vem da pesquisa publicada pelo
+  [DefJamFFNY-recomp](https://github.com/vyanhursky/DefJamFFNY-recomp) de vyanhursky (MIT), outro port do mesmo jogo:
+  vale conhecer, ele roda também no macOS e no Linux.
 - GTAO segundo Jimenez et al. (2016) e o [XeGTAO](https://github.com/GameTechDev/XeGTAO) da Intel; SSAO segundo o
   "Alchemy AO" de McGuire et al. (2011).
 
