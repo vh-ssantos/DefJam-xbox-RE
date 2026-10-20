@@ -265,16 +265,20 @@ Estado: main = v0.3.0 publicada (widescreen completo, instalador que monta o jog
 - Teclado = controle do jogador 1 (porta 0): defjam::Message -> KeyMessage guarda as teclas (WM_KEYDOWN/UP, limpa
   no WM_KILLFOCUS); PadHook soma o teclado depois do FeedPad e só com o menu fechado (entra no "tudo solto"), e
   marca connected (só teclado também é jogador 1). Tecla de direção = analógico no fim do curso.
-- Padrão: WASD analógico esq., setas direcional, J=Y soco, K=X chute, L=A agarrar, I=B, U/O gatilhos L/R, N/M
-  branco/preto, Q/E L3/R3, TFGH analógico dir., Enter/Backspace START/BACK. Opção keyboard (bool).
+- Padrão = o do port do vyanhursky (o usuário achou o primeiro, J/K/L, "estranho"; escolheu igualar): losango
+  I=Y soco, J=X chute, K=A agarrar, L=B; Espaço e clique esq. também A; Shift esq. e clique dir. também B; WASD
+  analógico esq. (anda nos menus); setas analógico dir. (Blazin, NÃO andam nos menus); Q/E gatilhos (+ Mouse4/5);
+  U/O preto/branco; Num 8/2/4/6 direcional; LCtrl/RCtrl L3/R3; Enter/Backspace START/BACK. Até 3 teclas por ação
+  (kKeySlots), botões do mouse como teclas (VK_LBUTTON..XBUTTON2), Shift/Ctrl/Alt com lado. Opção keyboard (bool).
 - Troca de botões do controle: RemapPad(port) logo depois do PadScript, em todos os controles; a ação i vem do
   botão g_from[i] (permutação; botão repetido no arquivo -> volta ao padrão). A captura "aperte o botão" só olha a
   porta 0 (as portas vazias diziam "tudo solto" com o A que abriu a captura ainda apertado: pegava o A).
-- Uma tecla/botão por ação: atribuir troca com quem tinha. settings.toml: [teclado] y = 'J', [controle] y = 'b'
-  (nomes estáveis em inglês; pontuação vira 0xBA etc.; a fonte do menu não tem acentos).
+- Uma tecla/botão por ação: atribuir troca com quem tinha. settings.toml: [teclado] a = 'K, Space, Mouse1', [controle] y = 'b'
+  (nomes do vyanhursky: Numpad8, LShift, Mouse1...; pontuação vira 0xBA; a fonte do menu não tem acentos). Na
+  captura de tecla, Esc cancela e Delete esvazia a posição.
 - F10 -> "Teclado e controle" (página 2 do menu, lista rolável): A/Enter captura, esquerda/direita escolhem a
   coluna, Esc cancela a tecla, B volta. Depois de pegar, a navegação é ignorada 300 ms (CaptureBusy).
-- Teste sem tocar no teclado do PC: DEFJAM_PAD_CMD aceita KEY_<nome> (KEY_J, KEY_Enter, "KEY_W+KEY_J"), tecla
+- Teste sem tocar no teclado do PC: DEFJAM_PAD_CMD aceita KEY_<nome> (KEY_I, KEY_Enter, KEY_Space, KEY_Mouse1, "KEY_W+KEY_I"), tecla
   simulada dentro do processo, que também responde à captura. Testado: abertura, título, menus, seleção (WASD),
   luta (J/K acertam), troca P no soco, troca B<->Y no controle, restaurar. Atenção: uma troca salva no
   settings-teste.toml muda o que os roteiros de botões fazem (apague [controle]/[teclado] dele depois).

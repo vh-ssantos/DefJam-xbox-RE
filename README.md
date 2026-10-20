@@ -5,7 +5,7 @@ código do jogo foi recompilado para rodar direto no PC, com imagem em Direct3D 
 
 Feito com o [XboxXBE-Recomp](https://github.com/TGP482/XboxXBE-Recomp) (TGP482), a mesma ferramenta do port do BLACK.
 
-> **English speakers:** the port and its menus switch to English automatically on a non-Portuguese Windows (or pick it in the in-game F10 menu). Quick start: download the zip from Releases, unzip it, run `Instalar.cmd` and pick your own Xbox (USA) .iso. The setup builds the game on your PC from your disc (no game code is downloaded); the first build takes a few minutes and needs Microsoft's free Visual Studio Build Tools, which the setup offers to install. Optional HD textures (4x Lanczos, generated locally from your own ISO, ~6 GB) are a checkbox in the setup. Keyboard works as player 1 (WASD move, J punch, K kick, L grab, U/O triggers, Enter = START); remap keys and controller buttons in F10 → Keyboard and controller.
+> **English speakers:** the port and its menus switch to English automatically on a non-Portuguese Windows (or pick it in the in-game F10 menu). Quick start: download the zip from Releases, unzip it, run `Instalar.cmd` and pick your own Xbox (USA) .iso. The setup builds the game on your PC from your disc (no game code is downloaded); the first build takes a few minutes and needs Microsoft's free Visual Studio Build Tools, which the setup offers to install. Optional HD textures (4x Lanczos, generated locally from your own ISO, ~6 GB) are a checkbox in the setup. Keyboard and mouse work as player 1 with the same default layout as vyanhursky's port (WASD move, I J K L are the face buttons in the pad's diamond, Q/E triggers, arrows right stick, Enter = START); remap keys and controller buttons in F10 → Keyboard and controller.
 
 > [!IMPORTANT]
 > **Este projeto não contém o jogo.** Não há ISO, arquivos de dados, músicas, vídeos, artes nem código original do
@@ -85,28 +85,30 @@ São os do Xbox. No controle de PlayStation: X = A, Círculo = B, Quadrado = X, 
 | START | Pausa |
 | BACK + START | Menu de opções do PC |
 
-### Teclado
+### Teclado e mouse
 
-O teclado do PC funciona como o controle do jogador 1 (dá para jogar só nele, ou junto com um controle):
+O teclado (e o mouse) do PC funcionam como o controle do jogador 1: dá para jogar só neles, ou junto com um
+controle. O padrão é o mesmo do port do vyanhursky: as teclas **I J K L formam o losango** dos botões do controle.
 
 | Tecla | Botão do Xbox | Na luta |
 |---|---|---|
-| W A S D | Analógico esquerdo | Andar |
-| J | Y | Soco |
-| K | X | Chute |
-| L | A | Agarrar |
-| I | B | |
-| U / O | Gatilhos L / R | U + J ou K: golpes fortes |
-| N / M | Branco / Preto | |
-| Q / E | L3 / R3 (apertar os analógicos) | |
-| T F G H | Analógico direito | |
-| Setas | Direcional | Menus |
-| Enter / Backspace | START / BACK | |
+| W A S D | Analógico esquerdo | Andar (e mexer o cursor nos menus) |
+| I | Y | Soco |
+| J | X | Chute |
+| K, Espaço ou clique esquerdo | A | Agarrar (e confirmar nos menus) |
+| L, Shift esquerdo ou clique direito | B | Voltar nos menus |
+| Q / E (ou botões laterais do mouse) | Gatilhos L / R | Q + I ou J: golpes fortes |
+| U / O | Preto / Branco | |
+| Setas | Analógico direito | Golpes Blazin' |
+| Teclado numérico 8 4 2 6 | Direcional | |
+| Ctrl esquerdo / direito | L3 / R3 (apertar os analógicos) | |
+| Enter / Backspace | START / BACK | Pausa |
 | F10 | | Menu de opções do PC |
 
-**Trocar teclas e botões:** F10 → **Teclado e controle**. Escolha a ação, aperte A (ou Enter) e depois a tecla ou o
-botão do controle novo. Se a tecla ou o botão já fazia outra ação, as duas trocam. Ali também dá para desligar o
-teclado e restaurar o padrão. Fica salvo no `settings.toml` (seções `[teclado]` e `[controle]`).
+**Trocar teclas e botões:** F10 → **Teclado e controle**. Cada ação aceita até 3 teclas (ou botões do mouse) e
+mostra o botão do controle que a faz. Escolha a ação e a coluna, aperte A (ou Enter) e depois a tecla ou o botão
+novo; Delete deixa a posição vazia. Se a tecla ou o botão já fazia outra ação, as duas trocam. Ali também dá para
+desligar o teclado e restaurar o padrão. Fica salvo no `settings.toml` (seções `[teclado]` e `[controle]`).
 
 ## Menu de opções do PC (F10 ou BACK + START)
 

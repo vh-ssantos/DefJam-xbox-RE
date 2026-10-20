@@ -148,10 +148,11 @@ int Row(int index, const char* label, const std::string& value, int nav_step) {
     return step;
 }
 
-// teclado e controle: cada ação do controle do Xbox com a sua tecla e o botão do controle que a faz.
+// teclado e controle: cada ação do controle do Xbox com até 3 teclas (ou cliques) e o botão do controle que a faz.
 // Cima/baixo escolhem a ação, esquerda/direita a coluna, A (Enter) espera a tecla ou o botão novo.
 void DrawControls(const int* nav) {
     constexpr int kList = 1, kReset = kList + kActions, kBackRow = kReset + 1, kCount = kBackRow + 1;
+    constexpr int kPadCol = kKeySlots;  // colunas 0-2 teclas, 3 o botão do controle
     static int col = 0, shown = -1;
     if (nav[kBack]) {
         g_page = 0;
@@ -162,14 +163,16 @@ void DrawControls(const int* nav) {
     const int step = nav[kRight] - nav[kLeft];
     const int action = g_row - kList;
     const bool on_list = action >= 0 && action < kActions;
-    if (on_list && step) col = action < kPadButtons ? Wrap(col + step, 2) : 0;
-    if (on_list && action >= kPadButtons) col = 0;  // direções dos analógicos: só no teclado
-    if (on_list && nav[kAccept]) StartCapture(col ? Capture::Pad : Capture::Key, action);
+    const int cols = on_list && action >= kPadButtons ? kKeySlots : kKeySlots + 1;  // direções: só teclas
+    if (on_list && step) col = Wrap(col + step, cols);
+    if (col >= cols) col = 0;
+    auto start = [](int c, int a) { StartCapture(c == kPadCol ? Capture::Pad : Capture::Key, a, c); };
+    if (on_list && nav[kAccept]) start(col, action);
 
     ImGuiIO& io = ImGui::GetIO();
     const float em = ImGui::GetFontSize();
     ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-    ImGui::SetNextWindowSize(ImVec2(em * 46, 0), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(std::min(em * 58, io.DisplaySize.x * 0.96f), 0), ImGuiCond_Always);
     ImGui::Begin(T("Teclado e controle###controles", "Keyboard and controller###controles"), nullptr,
                  ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
                      ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoNav);
@@ -180,12 +183,12 @@ void DrawControls(const int* nav) {
         save = true;
     }
     const float w = ImGui::GetContentRegionAvail().x;
-    const float key_x = w * 0.47f, pad_x = w * 0.74f, cell = w * 0.25f;
+    const float key_x = w * 0.33f, key_w = w * 0.155f, pad_x = w * 0.81f, pad_w = w * 0.19f;
     ImGui::TextDisabled("%s", T("Acao no jogo", "Game action"));
     ImGui::SameLine(key_x);
-    ImGui::TextDisabled("%s", T("Teclado", "Keyboard"));
+    ImGui::TextDisabled("%s", T("Teclas (ou mouse)", "Keys (or mouse)"));
     ImGui::SameLine(pad_x);
-    ImGui::TextDisabled("%s", T("Botao do controle", "Controller button"));
+    ImGui::TextDisabled("%s", T("Controle", "Controller"));
     // a lista rola: 24 ações não cabem numa tela de 720p
     ImGui::BeginChild("acoes", ImVec2(0, std::min(io.DisplaySize.y * 0.5f, ImGui::GetFrameHeightWithSpacing() * kActions)));
     const Capture capturing = Capturing();
@@ -199,23 +202,25 @@ void DrawControls(const int* nav) {
         }
         ImGui::AlignTextToFramePadding();
         ImGui::TextUnformatted(ActionLabel(a));
-        auto cell_button = [&](int c, float x, const std::string& text, bool enabled) {
+        auto cell = [&](int c, float x, float cw, const std::string& text) {
             ImGui::SameLine(x);
-            const bool hot = sel && col == c && enabled;
+            const bool hot = sel && col == c;
             if (hot) ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(170, 40, 30, 230));
-            const bool waiting = sel && col == c && capturing == (c ? Capture::Pad : Capture::Key);
-            const std::string label = waiting ? std::string(c ? T("aperte um botao...", "press a button...")
-                                                               : T("aperte uma tecla...", "press a key..."))
+            const bool waiting = hot && capturing == (c == kPadCol ? Capture::Pad : Capture::Key);
+            const std::string label = waiting ? std::string(c == kPadCol ? T("aperte...", "press...") : T("aperte...", "press..."))
                                               : text;
-            if (ImGui::Button((label + (c ? "##p" : "##k")).c_str(), ImVec2(cell, 0)) && enabled) {
+            ImGui::PushID(c);
+            // o clique que pega um botão do mouse solta em cima da célula: não recomeça a captura
+            if (ImGui::Button(label.c_str(), ImVec2(cw, 0)) && !CaptureBusy()) {
                 g_row = kList + a;
                 col = c;
-                StartCapture(c ? Capture::Pad : Capture::Key, a);
+                start(c, a);
             }
+            ImGui::PopID();
             if (hot) ImGui::PopStyleColor();
         };
-        cell_button(0, key_x, KeyLabel(a), true);
-        cell_button(1, pad_x, a < kPadButtons ? PadLabel(a) : "-", a < kPadButtons);
+        for (int s = 0; s < kKeySlots; s++) cell(s, key_x + s * (key_w + w * 0.005f), key_w, KeyLabel(a, s));
+        if (a < kPadButtons) cell(kPadCol, pad_x, pad_w, PadLabel(a));
         ImGui::PopID();
     }
     shown = g_row;
@@ -232,14 +237,17 @@ void DrawControls(const int* nav) {
         g_row = kControlsRow;
     }
     if (back_sel) ImGui::PopStyleColor();
-    ImGui::TextWrapped("%s", capturing == Capture::None
-                                 ? T("A ou Enter: trocar. Esquerda/direita: teclado ou controle. Uma tecla ou botao faz "
-                                     "uma acao so: se ja era de outra, as duas trocam. Padrao: WASD anda, J soco, "
-                                     "K chute, L agarra, U/O gatilhos.",
-                                     "A or Enter: change. Left/right: keyboard or controller. Each key or button does one "
-                                     "action: if another had it, they swap. Defaults: WASD moves, J punch, K kick, "
-                                     "L grab, U/O triggers.")
-                                 : T("Esperando... Esc cancela a tecla.", "Waiting... Esc cancels the key."));
+    ImGui::TextWrapped("%s", capturing == Capture::Key
+                                 ? T("Aperte a tecla ou o botao do mouse. Esc cancela, Delete deixa vazio.",
+                                     "Press the key or mouse button. Esc cancels, Delete leaves it empty.")
+                             : capturing == Capture::Pad
+                                 ? T("Aperte o botao no controle.", "Press the button on the controller.")
+                                 : T("A ou Enter: trocar. Esquerda/direita: escolhem a coluna. Cada tecla faz uma acao "
+                                     "so: se ja era de outra, as duas trocam. Padrao: WASD anda, I soco, J chute, "
+                                     "K ou Espaco agarra, Q/E gatilhos, setas analogico direito.",
+                                     "A or Enter: change. Left/right: pick the column. Each key does one action: if "
+                                     "another had it, they swap. Defaults: WASD moves, I punch, J kick, K or Space "
+                                     "grab, Q/E triggers, arrows right stick."));
     ImGui::End();
     if (TakeChanged()) save = true;
     if (save) app::Save();
