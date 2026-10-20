@@ -28,7 +28,7 @@ Este port é **100% gratuito** e só é distribuído **aqui**:
 - O port **nunca pede login, senha, cartão, Discord ou e-mail**. Ele só acessa a internet para ver se há versão
   nova, no próprio GitHub (dá para desligar com `check_updates = false` no `settings.toml`).
 - **Confira o arquivo:** cada release lista o **SHA-256** do `.zip`. No PowerShell:
-  `Get-FileHash DefJam-FFNY-PC-v0.3.0.zip` tem que dar exatamente o mesmo código da página da release.
+  `Get-FileHash DefJam-FFNY-PC-v0.4.0.zip` tem que dar exatamente o mesmo código da página da release.
 - O instalador é um script que dá para ler (`source\setup\instalar.ps1`): ele só baixa o instalador oficial da
   Microsoft (e confere a assinatura dele antes de abrir). O jogo montado não é assinado digitalmente; o Windows
   SmartScreen pode avisar "aplicativo não reconhecido" na primeira vez.
