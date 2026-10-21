@@ -258,8 +258,7 @@ teclado e mouse com troca de teclas/botões).
 - Para publicar uma versão: subir DEFJAM_VERSION, git limpo e enviado, tools/release.ps1 -> dist/*.zip (SHA-256),
   gh release create vX.Y.Z com o zip e notas PT/EN, baixar de volta e conferir o SHA-256. Avisar o usuário antes.
 - Pendências, em ordem: (1) teste em PC limpo (usuário); (2) ~~teclado e remapeamento~~ publicado na v0.4.0
-  (seção abaixo); (3) menu de dev da EA
-  (docs/developer-menu.md do vyanhursky); (4) online amigo x amigo (diferencial, nenhum port tem); (5) fundo
+  (seção abaixo); (3) ~~menu de dev da EA~~ feito na main depois da v0.4.0 (seção abaixo, falta publicar); (4) online amigo x amigo (diferencial, nenhum port tem); (5) fundo
   desfocado nas laterais dos menus em 16:9; (6) canvas mais largo; (7) testar o resto do jogo (modos, arenas,
   história) também com HD (alfa de material pode estar errado em alguma textura).
 
@@ -287,6 +286,28 @@ teclado e mouse com troca de teclas/botões).
 - Não testado aqui: o teclado físico (regra: nenhuma tecla no PC) -> o usuário testa.
 - Regras do usuário continuam: pt-BR, nada de teclas no PC (só DEFJAM_PAD_CMD), foto só da janela do port, não
   fechar o jogo dele, commits com Co-Authored-By, avisar antes de publicar.
+
+## Menu de desenvolvedor da EA (2026-10-20) — src/game/devmenu.cpp
+- O módulo CRunModuleAki (Init 0x77C40, Update 0x77A40, Render 0x77B20, Shutdown 0x77DD0, resto do construtor
+  0x779F0) existe no xbe, mas a loja perdeu vtable, construtor e o caso na fábrica 0x773A0. Mapa inteiro:
+  vyanhursky docs/research/dev-module-revival.md (mesmo xbe, MIT). O nosso recompilador traduz o xbe inteiro, então
+  todas essas funções já existiam (conferido em generated/game/x86_func_mapping.cpp); não precisou retraduzir.
+- Injeção no passo do gerenciador (hook 0x77040, thread do jogo; gerenciador = subsistema 0x17 do registro
+  0x2FB148: +0x18 atual, +0x1C próximo, +0x24 estado): só se o atual é o front end (vtable 0x29D784) e estado 0.
+  Objeto 0x44 bytes por 0x29680(tamanho, etiqueta, 0) (cdecl), vtable nossa em AllocSystem: 0x76D30, 0x77C40,
+  0x76EF0 (Start = ret), 0x77A40, 0x77B20, 0x76EE0 (CanLeave = sim), 0x76EF0, 0x77DD0; ecx=obj, 0x779F0; grava
+  +0x1C e +0x24 = 1. Sair (F10): FrontEnd (subsistema 0xD) +0x9C = 15 (menu principal) e 0x773A0(9) com ecx = gerenciador.
+- Hook 0x77DD0 (Unload): (1) antes do original, a limpeza que o modo faz no fim normal: 0x2DF10 se modo+0x24 & 1
+  (luta) ou 0x2D570 se modo+0x2A0 == 3 (cena). Sem isso, START -> QUIT no meio de uma luta montada aqui deixava as
+  tarefas da luta na lista e a próxima abertura caía em 0x445C0 (0x44210 devolve 0 com o modo em "menu"). (2) Tira a
+  tarefa estática 0x2DBF28 da lista (subsistema 1, cabeça em +4, próxima em nó+8): o init a põe de novo sem conferir
+  e ela apontaria para si mesma (congela; achado do vyanhursky). (3) +0x9C = 15 (o QUIT escolhe a tela por conta
+  própria e ainda passa pelo filme de abertura; não atrapalha).
+- F10 linha 17 (abre/volta); com o módulo rodando, o WASD também vira direcional (o menu só lê o direcional).
+- Testado (live.ps1, controle simulado): abre do menu principal e do título; REAL TIME CINEMA (sc11) toca e volta;
+  GAME Doc x Scarface e Scarface x Crack na Foundation rodam (faltam só falas do narrador); sair pelo F10 -> menu
+  principal com música; abrir de novo; QUIT no meio da luta -> abrir de novo (caía antes da correção, agora ok).
+  Não testado: TAG/3WAY/4WAY/handicap, os visualizadores, a luta indo até o fim e voltando ao menu de dev.
 
 ## Texturas HD (2026-10-19, Codex; na main desde a v0.3.0)
 - Gerador C++20 `tools/hdpack` (`defjam_hdpack.exe`, compilado pelo CMake junto do port); sem Python, IA ou

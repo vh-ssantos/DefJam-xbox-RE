@@ -5,7 +5,7 @@ código do jogo foi recompilado para rodar direto no PC, com imagem em Direct3D 
 
 Feito com o [XboxXBE-Recomp](https://github.com/TGP482/XboxXBE-Recomp) (TGP482), a mesma ferramenta do port do BLACK.
 
-> **English speakers:** the port and its menus switch to English automatically on a non-Portuguese Windows (or pick it in the in-game F10 menu). Quick start: download the zip from Releases, unzip it, run `Instalar.cmd` and pick your own Xbox (USA) .iso. The setup builds the game on your PC from your disc (no game code is downloaded); the first build takes a few minutes and needs Microsoft's free Visual Studio Build Tools, which the setup offers to install. Optional HD textures (4x Lanczos, generated locally from your own ISO, ~6 GB) are a checkbox in the setup. Keyboard and mouse work as player 1 with the same default layout as vyanhursky's port (WASD move, I J K L are the face buttons in the pad's diamond, Q/E triggers, arrows right stick, Enter = START); remap keys and controller buttons in F10 → Keyboard and controller.
+> **English speakers:** the port and its menus switch to English automatically on a non-Portuguese Windows (or pick it in the in-game F10 menu). Quick start: download the zip from Releases, unzip it, run `Instalar.cmd` and pick your own Xbox (USA) .iso. The setup builds the game on your PC from your disc (no game code is downloaded); the first build takes a few minutes and needs Microsoft's free Visual Studio Build Tools, which the setup offers to install. Optional HD textures (4x Lanczos, generated locally from your own ISO, ~6 GB) are a checkbox in the setup. Keyboard and mouse work as player 1 with the same default layout as vyanhursky's port (WASD move, I J K L are the face buttons in the pad's diamond, Q/E triggers, arrows right stick, Enter = START); remap keys and controller buttons in F10 → Keyboard and controller. F10 → EA developer menu reopens EA's hidden debug menu (any match, any Story scene).
 
 > [!IMPORTANT]
 > **Este projeto não contém o jogo.** Não há ISO, arquivos de dados, músicas, vídeos, artes nem código original do
@@ -131,6 +131,7 @@ desligar o teclado e restaurar o padrão. Fica salvo no `settings.toml` (seçõe
 | Versão | Mostra a versão e atualiza quando houver uma nova |
 | Texturas HD | Liga ou desliga as texturas HD (gere o pacote no instalador). Vale ao reiniciar |
 | Teclado e controle | Teclas do teclado e botões do controle, um por ação (veja acima) |
+| Menu de desenvolvedor da EA | Abre (ou fecha) a ferramenta escondida da EA: qualquer luta, qualquer cena (veja abaixo) |
 
 Tudo fica salvo no `settings.toml` ao lado do exe.
 
@@ -156,6 +157,25 @@ Quem compila pode gerar também em 2x, após a compilação:
 O gerador é C++ e usa componentes do Windows; não exige Python. Consulte [tools/hdpack](tools/hdpack/README.md)
 para formatos, retomada e opções de diagnóstico. Para levar a instalação ao Linux/Proton, copie também a pasta `hd`;
 o funcionamento HD nesse ambiente ainda precisa de teste.
+
+## Menu de desenvolvedor da EA
+
+O jogo ainda guarda a ferramenta que os desenvolvedores da EA usavam, mas a versão de loja não tem como abri-la.
+O port a liga de novo: **F10 → Menu de desenvolvedor da EA**, a partir da tela de título ou do menu principal.
+
+- **MATCH_MODE:** tipo de luta (SINGLE, TAG, 3WAY, 4WAY, 1_VS_2, 1_VS_3).
+- **FIGHTER_0 a FIGHTER_3:** os lutadores (esquerda/direita trocam, LT/RT pulam 10; A troca entre jogador e CPU
+  fácil/normal/difícil). Os que terminam em "1" (Crow1, Blaze1...) são bonecos de teste: escolha lutadores de
+  verdade, senão a luta não começa.
+- **STAGE:** a arena. **CINEMA:** a cena da história que o modo REAL TIME CINEMA toca.
+- **MODE - GAME** começa a luta e volta ao menu no fim; **MODE - REAL TIME CINEMA** toca a cena; os outros são
+  visualizadores da EA (arena, animações, plateia, golpes Blazin').
+- Direcional (ou WASD no teclado) anda, A escolhe. Para sair: F10 → **Menu de desenvolvedor da EA** de novo
+  (volta ao menu principal), ou START → QUIT.
+
+É a ferramenta original, do jeito que a EA deixou: fonte, nomes e entradas de teste são dela. Em lutas montadas
+por ela, a apresentação do narrador não toca (o disco de loja não tem esse arquivo). Como foi religada: a pesquisa
+do [DefJamFFNY-recomp](https://github.com/vyanhursky/DefJamFFNY-recomp) de vyanhursky (MIT).
 
 ## Requisitos
 

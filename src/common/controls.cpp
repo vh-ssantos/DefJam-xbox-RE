@@ -16,6 +16,7 @@
 
 #include <toml++/toml.hpp>
 
+#include "common/devmenu.h"
 #include "common/lang.h"
 #include "core/input.h"
 
@@ -327,6 +328,10 @@ void ApplyKeyboard(input::Pad& pad) {
     };
     stick(pad.lx, pad.ly, kActLsUp);
     stick(pad.rx, pad.ry, kActRsUp);
+    // o menu de dev da EA só lê o direcional (no teclado ele fica no teclado numérico): lá o WASD também é direcional
+    if (DevMenuActive())
+        for (int i = 0; i < 4; i++)
+            if (down(kActLsUp + i)) Set(pad, kActUp + i, 0xFF);
 }
 
 void BeginTestKeys() {

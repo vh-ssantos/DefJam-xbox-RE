@@ -27,6 +27,7 @@
 #include "app/app.h"
 #include "common/menu.h"
 #include "common/controls.h"
+#include "common/devmenu.h"
 #include "common/lang.h"
 #include "common/occlusion.h"
 #include "common/update.h"
@@ -94,7 +95,7 @@ int IndexOf(const std::vector<T>& v, const T& x) {
 }
 int Wrap(int i, int n) { return (i % n + n) % n; }
 
-constexpr int kRows = 18;  // 17 opções + Fechar
+constexpr int kRows = 19;  // 18 opções + Fechar
 constexpr int kControlsRow = 16;
 int g_page = 0;  // 0 opções, 1 teclado e controle
 char g_name[16] = {};  // nome do próximo User ID, digitado no teclado do PC
@@ -455,6 +456,27 @@ void DrawPanel() {
     if (g_row == kControlsRow && nav[kAccept]) {
         g_page = 1;
         g_row = 1;
+    }
+    // o menu de desenvolvedor da EA (escolher qualquer luta, cena da história, visualizadores)
+    {
+        const bool dev = DevMenuActive();
+        Row(17, T("Menu de desenvolvedor da EA", "EA developer menu"),
+            dev ? T("A volta ao menu principal", "A returns to the main menu") : T("A abre", "A opens"), 0);
+        if (g_row == 17 && nav[kAccept]) {
+            if (dev) LeaveDevMenu();
+            else OpenDevMenu();
+            g_open = false;  // fecha o F10 para ver o menu de dev chegar
+        }
+        if (g_row == 17) {
+            const std::string msg = DevMenuMessage();
+            ImGui::TextWrapped("   %s", !msg.empty() ? msg.c_str()
+                                                     : T("A ferramenta da EA que ficou escondida no jogo: escolha lutadores, arena e "
+                                                         "tipo de luta, ou uma cena da historia. Abra a partir do menu principal. "
+                                                         "Direcional (ou WASD) anda, A escolhe, START pausa e sai (QUIT).",
+                                                         "EA's tool left hidden in the game: pick fighters, venue and match type, or "
+                                                         "a Story scene. Open it from the main menu. D-pad (or WASD) moves, A picks, "
+                                                         "START pauses and leaves (QUIT)."));
+        }
     }
     ImGui::Separator();
     // Fechar: selecionado vira vermelho; A/Enter ou clique fecha
