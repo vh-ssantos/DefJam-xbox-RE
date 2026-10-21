@@ -189,6 +189,7 @@ x86 -> C++, D3D8 -> D3D12, DirectSound -> XAudio2. O port de PS2 (E:\Projetos\De
   compartilhado; esperar o Visual Studio Installer). Quem vem da v0.2.0 atualiza pelo F10; o HD só se gera rodando
   o Instalar.cmd de novo com a caixa marcada (o -Update não gera HD).
 - v0.4.0 (2026-10-19): teclado e mouse como jogador 1 (padrão do vyanhursky) + troca de teclas e botões no F10.
+- v0.5.0 (2026-10-20): menu de desenvolvedor da EA de volta (F10), com a correção do QUIT no meio de luta.
 - Divulgado no Reddit (r/decomps). Feedback: tela esticada (3D resolvido, 2D pendente), primeira tela em português
   (resolvido com o idioma), pedidos de Linux e de online.
 
@@ -239,9 +240,10 @@ x86 -> C++, D3D8 -> D3D12, DirectSound -> XAudio2. O port de PS2 (E:\Projetos\De
   baixar a v0.2.0 à mão (dizer nas notas da release).
 - Linux/Proton: o instalador não roda lá; montar no Windows e copiar a pasta (README).
 
-## PASSAGEM DE BASTÃO (atualizada 2026-10-19, v0.4.0) — leia isto primeiro
-Estado: main = v0.4.0 publicada (widescreen completo, instalador que monta o jogo da ISO, texturas HD opcionais,
-teclado e mouse com troca de teclas/botões).
+## PASSAGEM DE BASTÃO (atualizada 2026-10-20, v0.5.0) — leia isto primeiro
+Estado: main = v0.5.0 publicada (widescreen completo, instalador que monta o jogo da ISO, texturas HD opcionais,
+teclado e mouse com troca de teclas/botões, menu de desenvolvedor da EA). No Windows, nada do port do vyanhursky
+fica à frente; o próximo grande item é o online amigo x amigo.
 - O HD foi feito pelo Codex (OpenAI) na branch hd-texturas, revisado e juntado à main (fast-forward). Seção abaixo.
 - Instalador testado de ponta a ponta COM HD na janela real (pasta de teste com os atalhos desviados): achou o VS,
   compilou, conferiu as 18.971 texturas, ativou hd_textures, "Pronto"; o usuário jogou com HD.
@@ -258,7 +260,7 @@ teclado e mouse com troca de teclas/botões).
 - Para publicar uma versão: subir DEFJAM_VERSION, git limpo e enviado, tools/release.ps1 -> dist/*.zip (SHA-256),
   gh release create vX.Y.Z com o zip e notas PT/EN, baixar de volta e conferir o SHA-256. Avisar o usuário antes.
 - Pendências, em ordem: (1) teste em PC limpo (usuário); (2) ~~teclado e remapeamento~~ publicado na v0.4.0
-  (seção abaixo); (3) ~~menu de dev da EA~~ feito na main depois da v0.4.0 (seção abaixo, falta publicar); (4) online amigo x amigo (diferencial, nenhum port tem); (5) fundo
+  (seção abaixo); (3) ~~menu de dev da EA~~ publicado na v0.5.0 (seção abaixo); (4) online amigo x amigo (diferencial, nenhum port tem); (5) fundo
   desfocado nas laterais dos menus em 16:9; (6) canvas mais largo; (7) testar o resto do jogo (modos, arenas,
   história) também com HD (alfa de material pode estar errado em alguma textura).
 
