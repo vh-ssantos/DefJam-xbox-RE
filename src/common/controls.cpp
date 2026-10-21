@@ -22,7 +22,7 @@
 
 namespace defjam {
 
-bool g_keyboard = true;
+uint32_t g_keyboard_player = 1;
 
 namespace {
 
@@ -309,8 +309,8 @@ void RemapPad(int port, input::Pad& pad) {
 }
 
 void ApplyKeyboard(input::Pad& pad) {
-    if (!g_keyboard) return;
-    pad.connected = true;  // só no teclado também é o jogador 1
+    if (!g_keyboard_player) return;
+    pad.connected = true;  // só no teclado também é um jogador
     auto down = [](int a) {
         for (int s = 0; s < kKeySlots; s++) {
             const uint32_t vk = g_key[a][s];

@@ -260,7 +260,8 @@ fica à frente; o próximo grande item é o online amigo x amigo.
 - Para publicar uma versão: subir DEFJAM_VERSION, git limpo e enviado, tools/release.ps1 -> dist/*.zip (SHA-256),
   gh release create vX.Y.Z com o zip e notas PT/EN, baixar de volta e conferir o SHA-256. Avisar o usuário antes.
 - Pendências, em ordem: (1) teste em PC limpo (usuário); (2) ~~teclado e remapeamento~~ publicado na v0.4.0
-  (seção abaixo); (3) ~~menu de dev da EA~~ publicado na v0.5.0 (seção abaixo); (4) online amigo x amigo (diferencial, nenhum port tem); (5) fundo
+  (seção abaixo); (3) ~~menu de dev da EA~~ publicado na v0.5.0 (seção abaixo); (4) online: Parsec documentado e jogador 2 testado (C, 2026-10-21); próximo = B, transmissão pelo host
+  dentro do jogo (seção "Online amigo x amigo" abaixo; o lockstep do Codex fica na branch codex/online-p2p); (5) fundo
   desfocado nas laterais dos menus em 16:9; (6) canvas mais largo; (7) testar o resto do jogo (modos, arenas,
   história) também com HD (alfa de material pode estar errado em alguma textura).
 
@@ -310,6 +311,26 @@ fica à frente; o próximo grande item é o online amigo x amigo.
   GAME Doc x Scarface e Scarface x Crack na Foundation rodam (faltam só falas do narrador); sair pelo F10 -> menu
   principal com música; abrir de novo; QUIT no meio da luta -> abrir de novo (caía antes da correção, agora ok).
   Não testado: TAG/3WAY/4WAY/handicap, os visualizadores, a luta indo até o fim e voltando ao menu de dev.
+
+## Online amigo x amigo (decisão de 2026-10-21)
+- O Codex investigou lockstep na branch `codex/online-p2p` (worktree `out/online-work`, não enviada ao GitHub):
+  replay de dois humanos, ~3.000 passos com lutadores iguais em duas execuções, mas RNGs da plateia (0x375F68),
+  0x33DB5C e 0x39C0E0 divergem; sem rede nenhuma. Leia `out/online-work/notes/PASSAGEM-DE-BASTAO-ONLINE.md`.
+- Já existe online em outro port: sweeax-exe/ffny-online (sobre o runtime do vyanhursky, criado 2026-10-20): lobby,
+  relay UDP, lockstep, checksum a cada 60 passos. A documentação dele admite desync em luta longa pela plateia.
+- Decisão do usuário: **C agora** (Parsec, sem código) e **depois B** (transmissão pelo host dentro do jogo: só o host
+  simula; o cliente manda o controle e recebe vídeo/som; não depende de determinismo). O lockstep fica guardado.
+- C feito: README "Jogar com um amigo pela internet (Parsec)". Testado com controle 2 simulado: entra na tela
+  "Press Start" (P1..P4), escolhe lutador (CHOOSE FIGHTER mostra P2, não CPU) e luta (combo no P1). O jogo tem 4
+  jogadores locais nativos.
+- Teclado como jogador 2: opção `keyboard_player` (0 desligado, 1, 2; antes era o bool `keyboard`). PadHook aplica o
+  teclado na porta 1 quando 2. Testado: Enter entra como P2, K confirma, I/J acertam.
+- Teste do controle 2: DEFJAM_PAD_CMD aceita P2_<botão> (P2_A, P2_START, P2_LSL...); o controle 2 aparece conectado
+  a partir do primeiro P2_. Ex.: press "P2_LT 0.2" no começo, depois "START" + "P2_START" na tela de entrada.
+- Kaspersky (2026-10-21): PDM:Trojan.Win32.Generic (comportamento) no out\build\release\DefJamFFNY.exe durante os
+  testes; o usuário desinfectou sem reiniciar e pôs E:\Projetos\DefJam-xbox-RE nas exclusões. Backup dos saves em
+  out\backup-saves-*. Os "permission denied" de link de antes provavelmente eram o antivírus segurando o exe.
+  README tem a seção "O antivírus acusou o jogo?". Sugerido ao usuário enviar o falso positivo à Kaspersky.
 
 ## Texturas HD (2026-10-19, Codex; na main desde a v0.3.0)
 - Gerador C++20 `tools/hdpack` (`defjam_hdpack.exe`, compilado pelo CMake junto do port); sem Python, IA ou

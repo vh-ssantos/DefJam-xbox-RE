@@ -5,7 +5,7 @@ código do jogo foi recompilado para rodar direto no PC, com imagem em Direct3D 
 
 Feito com o [XboxXBE-Recomp](https://github.com/TGP482/XboxXBE-Recomp) (TGP482), a mesma ferramenta do port do BLACK.
 
-> **English speakers:** the port and its menus switch to English automatically on a non-Portuguese Windows (or pick it in the in-game F10 menu). Quick start: download the zip from Releases, unzip it, run `Instalar.cmd` and pick your own Xbox (USA) .iso. The setup builds the game on your PC from your disc (no game code is downloaded); the first build takes a few minutes and needs Microsoft's free Visual Studio Build Tools, which the setup offers to install. Optional HD textures (4x Lanczos, generated locally from your own ISO, ~6 GB) are a checkbox in the setup. Keyboard and mouse work as player 1 with the same default layout as vyanhursky's port (WASD move, I J K L are the face buttons in the pad's diamond, Q/E triggers, arrows right stick, Enter = START); remap keys and controller buttons in F10 → Keyboard and controller. F10 → EA developer menu reopens EA's hidden debug menu (any match, any Story scene).
+> **English speakers:** the port and its menus switch to English automatically on a non-Portuguese Windows (or pick it in the in-game F10 menu). Quick start: download the zip from Releases, unzip it, run `Instalar.cmd` and pick your own Xbox (USA) .iso. The setup builds the game on your PC from your disc (no game code is downloaded); the first build takes a few minutes and needs Microsoft's free Visual Studio Build Tools, which the setup offers to install. Optional HD textures (4x Lanczos, generated locally from your own ISO, ~6 GB) are a checkbox in the setup. Keyboard and mouse work as player 1 with the same default layout as vyanhursky's port (WASD move, I J K L are the face buttons in the pad's diamond, Q/E triggers, arrows right stick, Enter = START); remap keys and controller buttons in F10 → Keyboard and controller. F10 → EA developer menu reopens EA's hidden debug menu (any match, any Story scene). Online with a friend: for now via [Parsec](https://parsec.app) (the friend's controller becomes player 2; see "Jogar com um amigo pela internet"). Antivirus false positive (e.g. Kaspersky PDM:Trojan.Win32.Generic): add the game folder to its exclusions.
 
 > [!IMPORTANT]
 > **Este projeto não contém o jogo.** Não há ISO, arquivos de dados, músicas, vídeos, artes nem código original do
@@ -108,7 +108,40 @@ controle. O padrão é o mesmo do port do vyanhursky: as teclas **I J K L formam
 **Trocar teclas e botões:** F10 → **Teclado e controle**. Cada ação aceita até 3 teclas (ou botões do mouse) e
 mostra o botão do controle que a faz. Escolha a ação e a coluna, aperte A (ou Enter) e depois a tecla ou o botão
 novo; Delete deixa a posição vazia. Se a tecla ou o botão já fazia outra ação, as duas trocam. Ali também dá para
-desligar o teclado e restaurar o padrão. Fica salvo no `settings.toml` (seções `[teclado]` e `[controle]`).
+restaurar o padrão e escolher **com qual jogador o teclado joga: Jogador 1, Jogador 2 ou Desligado** (Jogador 2 é para
+um jogar no controle e outro no teclado, ou para jogar com um amigo pelo Parsec, abaixo). Fica salvo no
+`settings.toml` (`keyboard_player` e as seções `[teclado]` e `[controle]`).
+
+## Jogar com um amigo pela internet (Parsec)
+
+O jogo aceita até 4 jogadores no mesmo PC (Battle → escolha o modo → cada um aperta START na tela "Press Start").
+Enquanto o online próprio do port não fica pronto, dá para jogar com um amigo em outra casa pelo
+[Parsec](https://parsec.app) (gratuito): o seu PC roda o jogo e transmite a imagem; o controle do amigo aparece no
+seu PC como um controle de Xbox e vira o jogador 2.
+
+1. Os dois instalam o Parsec e criam uma conta. Só quem hospeda (você) precisa ter o jogo.
+2. Você abre o jogo e convida o amigo pelo Parsec (pelo link de compartilhar ou adicionando-o como amigo). Ao
+   ele entrar, **libere o controle (gamepad) dele** no Parsec.
+3. **Quem é quem:** o primeiro controle que o jogo vê é o jogador 1.
+   - Você num controle: ligue o seu antes de o amigo entrar. Você é o P1, o amigo é o P2.
+   - Você no teclado: F10 → **Teclado e controle** → "Teclado e mouse jogam como" → **Jogador 2**. O controle do
+     amigo vira o P1.
+4. No jogo: **Battle** → **One on One** → os dois apertam START na tela "Press Start".
+
+O amigo precisa jogar **num controle**: o teclado dele, pelo Parsec, chega no seu PC como se fosse o seu teclado.
+O atraso depende da internet dos dois (na mesma cidade costuma ficar bom para luta).
+
+## O antivírus acusou o jogo?
+
+Alguns antivírus (o Kaspersky, por exemplo, como `PDM:Trojan.Win32.Generic`) desconfiam do `DefJamFFNY.exe`
+pelo **comportamento**, não por um vírus encontrado: o port reserva muita memória para imitar o Xbox, roda código
+traduzido e não tem assinatura digital. É um alarme falso: o exe é montado no seu PC, pelo `Instalar.cmd`, a
+partir do código aberto deste repositório e da sua ISO.
+
+- **Não** escolha "desinfectar e reiniciar". Use a opção que não reinicia (ou "ignorar", se houver) e coloque a
+  pasta do jogo nas **exclusões** do antivírus.
+- Se o exe sumiu, restaure-o da quarentena ou rode o `Instalar.cmd` de novo (ele remonta o exe; saves e
+  configurações ficam).
 
 ## Menu de opções do PC (F10 ou BACK + START)
 
@@ -197,8 +230,13 @@ Se testar, conte como foi num [issue](../../issues) (funcionou? FPS? som? contro
 
 ## Problemas?
 
-Abra um [issue](../../issues) com o arquivo mais novo da pasta `logs` (ao lado do exe) e, se o jogo fechou sozinho,
-o arquivo de `CrashDumps`. Diga em qual tela aconteceu.
+- **"Coloque o jogo na pasta assets"** (ou o instalador não aceita a ISO): precisa ser a ISO do **Xbox, versão USA**
+  (as de PS2 e GameCube não servem), direto na pasta `assets` e não numa subpasta.
+- **Antivírus:** veja "O antivírus acusou o jogo?" acima.
+- **Saves:** ficam em `hdd\E\UDATA\45410049` ao lado do exe (F10 → Pasta de saves abre).
+
+Para o resto, abra um [issue](../../issues) com o arquivo mais novo da pasta `logs` (ao lado do exe) e, se o jogo
+fechou sozinho, o arquivo de `CrashDumps`. Diga em qual tela aconteceu.
 
 ## Compilar (para quem quer mexer no código)
 

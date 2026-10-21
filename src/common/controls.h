@@ -21,7 +21,9 @@ enum Action {
 constexpr int kPadButtons = kActLsUp;  // as ações que o controle pode trocar
 constexpr int kKeySlots = 3;           // teclas (ou botões do mouse) por ação
 
-extern bool g_keyboard;  // teclado como controle do jogador 1 (settings: keyboard)
+// teclado (e mouse) como controle de qual jogador: 0 desligado, 1 ou 2 (settings: keyboard_player). Jogador 2 serve
+// para quem joga no controle e quer o teclado para outra pessoa, ou com o amigo pelo Parsec no controle 1
+extern uint32_t g_keyboard_player;
 
 const char* ActionLabel(int action);         // no idioma do port, com o que faz na luta
 std::string KeyLabel(int action, int slot);  // a tecla nessa posição, "-" se vazia

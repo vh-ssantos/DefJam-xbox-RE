@@ -178,9 +178,9 @@ void DrawControls(const int* nav) {
                  ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
                      ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoNav);
     bool save = false;
-    if (Row(0, T("Teclado como controle (jogador 1)", "Keyboard as controller (player 1)"),
-            g_keyboard ? T("Sim", "Yes") : T("Nao", "No"), step)) {
-        g_keyboard = !g_keyboard;
+    const char* players[] = {T("Desligado", "Off"), T("Jogador 1", "Player 1"), T("Jogador 2", "Player 2")};
+    if (int st = Row(0, T("Teclado e mouse jogam como", "Keyboard and mouse play as"), players[g_keyboard_player % 3], step)) {
+        g_keyboard_player = uint32_t(Wrap(int(g_keyboard_player) + st, 3));
         save = true;
     }
     const float w = ImGui::GetContentRegionAvail().x;

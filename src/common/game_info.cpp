@@ -7,6 +7,8 @@
 #include <windows.h>
 
 #include <algorithm>
+#include <atomic>
+#include <mutex>
 #include <chrono>
 #include <cstdio>
 #include <string>
@@ -135,10 +137,36 @@ std::vector<LivePress> ReadLiveCommands(const char* path) {
     return v;
 }
 
+// o comando ao vivo em curso; "P2_A", "P2_RIGHT"... são do controle 2 (que aparece conectado no primeiro P2_)
+std::mutex g_live_lock;
+std::string g_live_holding;  // com g_live_lock
+std::atomic<bool> g_live_p2{false};
+
+// controle 2 dos testes: só os botões P2_ do comando em curso, sem o prefixo
+void PadScriptP2(input::Pad& pad) {
+    if (!g_live_p2) return;
+    pad.connected = true;
+    std::string p2;
+    size_t at = 0;
+    std::string holding;
+    {
+        std::lock_guard lock(g_live_lock);
+        holding = g_live_holding;
+    }
+    while (at <= holding.size()) {
+        size_t e = holding.find('+', at);
+        if (e == std::string::npos) e = holding.size();
+        if (holding.compare(at, 3, "P2_") == 0) p2 += (p2.empty() ? "" : "+") + holding.substr(at + 3, e - at - 3);
+        at = e + 1;
+    }
+    if (!p2.empty()) ApplyButtons(p2, pad);
+}
+
 void PadScript(int port, input::Pad& pad) {
     static const std::vector<ScriptPress> script = LoadPadScript();
     static std::vector<double> captures = LoadCaptureTimes();
     static const char* live_path = std::getenv("DEFJAM_PAD_CMD");
+    if (port == 1 && live_path) PadScriptP2(pad);
     if (port != 0 || (script.empty() && captures.empty() && !live_path)) return;
     static const auto start = std::chrono::steady_clock::now();
     const double t = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
@@ -151,9 +179,10 @@ void PadScript(int port, input::Pad& pad) {
     for (const ScriptPress& s : script)
         if (t >= s.at && t <= s.at + s.len) ApplyButtons(s.buttons, pad);
     if (live_path) {
+        std::lock_guard lock(g_live_lock);
         // fila: cada comando segura os botões por len segundos e solta por 0.15 s antes do próximo
         static std::vector<LivePress> queue;
-        static std::string holding;
+        std::string& holding = g_live_holding;
         static double hold_end = 0, next_start = 0, next_read = 0;
         if (t >= next_read) {
             next_read = t + 0.1;
@@ -169,6 +198,7 @@ void PadScript(int port, input::Pad& pad) {
                 next_start = t + c.len;
             } else {
                 holding = c.buttons;
+                if (holding.find("P2_") != std::string::npos) g_live_p2 = true;
                 hold_end = t + c.len;
                 next_start = hold_end + 0.15;
             }
@@ -181,6 +211,8 @@ void PadScript(int port, input::Pad& pad) {
 void PadHook(int port, input::Pad& pad) {
     PadScript(port, pad);
     defjam::RemapPad(port, pad);  // botões trocados no F10 (todos os controles)
+    // teclado como jogador 2 (o jogador 1 num controle, ou o amigo pelo Parsec): soma ao controle 2
+    if (port == 1 && defjam::g_keyboard_player == 2 && !defjam::MenuOpen()) defjam::ApplyKeyboard(pad);
     if (port != 0) return;
     defjam::WaitWhileUnfocused();
     defjam::ApplyPendingCheat();
@@ -191,7 +223,7 @@ void PadHook(int port, input::Pad& pad) {
     combo = both;
     defjam::FeedPad(pad);
     // o teclado do PC soma ao jogador 1 (com o menu aberto as teclas são do menu); entra no "tudo solto" abaixo
-    if (!defjam::MenuOpen()) defjam::ApplyKeyboard(pad);
+    if (!defjam::MenuOpen() && defjam::g_keyboard_player == 1) defjam::ApplyKeyboard(pad);
     const bool any = pad.buttons || pad.analog[0] || pad.analog[1] || pad.analog[2] || pad.analog[3] ||
                      pad.analog[6] || pad.analog[7];
     // menu aberto: o jogo não vê o controle; ao fechar, só volta a ver depois de tudo solto (o B que fechou não vira B
@@ -228,7 +260,7 @@ const app::GameInfo app::kGame = {
                 {"pause_on_focus_loss", &defjam::g_pause_unfocused, nullptr},
                 {"discord", &defjam::g_discord, nullptr},
                 {"check_updates", &defjam::g_check_updates, nullptr},
-                {"keyboard", &defjam::g_keyboard, nullptr}},
+                {"keyboard_player", nullptr, &defjam::g_keyboard_player}},
     .load = defjam::LoadControls,
     .save = defjam::SaveControls,
     .init = [] {
